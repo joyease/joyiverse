@@ -90,10 +90,10 @@ export const PersonalMapView: React.FC = () => {
 
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // CartoDB Positron Light Minimalist Layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
+    // OpenStreetMap Layer (Standard OSM, identical to peak100)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      subdomains: ['a', 'b', 'c'],
       maxZoom: 19,
     }).addTo(map);
 
@@ -101,7 +101,24 @@ export const PersonalMapView: React.FC = () => {
     markersLayerRef.current = markersGroup;
     mapInstanceRef.current = map;
 
+    // Force map to compute correct dimensions
+    const resizeTimer1 = setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
+    const resizeTimer2 = setTimeout(() => {
+      map.invalidateSize();
+    }, 500);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      clearTimeout(resizeTimer1);
+      clearTimeout(resizeTimer2);
+      window.removeEventListener('resize', handleResize);
       map.remove();
       mapInstanceRef.current = null;
     };

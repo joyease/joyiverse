@@ -99,22 +99,32 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
     }
   };
 
-  // Setup Leaflet Map for outdoor category
+  // Setup Leaflet Map for outdoor category (Travel, Sport, Food)
   useEffect(() => {
-    if (!isMapMode || !mapContainerRef.current) return;
+    if (!isMapMode) {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+      return;
+    }
 
-    // Clean up previous map instance if any
+    if (loading || logs.length === 0 || !mapContainerRef.current) {
+      return;
+    }
+
+    // Clean up if reinitializing container
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
     }
 
-    // Default center (Taipei, or from first log point)
+    // Determine initial center
+    const validPoints = logs.filter(l => l.lat != null && l.lng != null);
     let defaultLat = 25.0330;
     let defaultLng = 121.5654;
     let defaultZoom = 12;
 
-    const validPoints = logs.filter(l => l.lat != null && l.lng != null);
     if (validPoints.length > 0 && validPoints[0].lat != null && validPoints[0].lng != null) {
       defaultLat = validPoints[0].lat;
       defaultLng = validPoints[0].lng;
@@ -129,10 +139,10 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
     // Add Zoom Control top right
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // CartoDB Positron Light Minimalist Layer (No terrain, clear and clean)
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
+    // OpenStreetMap Layer (Standard OSM, identical to peak100)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      subdomains: ['a', 'b', 'c'],
       maxZoom: 19,
     }).addTo(map);
 
@@ -140,25 +150,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
     markersLayerRef.current = markersGroup;
     mapInstanceRef.current = map;
 
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-    };
-  }, [isMapMode]);
-
-  // Update Markers on log change
-  useEffect(() => {
-    if (!isMapMode || !mapInstanceRef.current || !markersLayerRef.current) return;
-
-    const markersGroup = markersLayerRef.current;
-    markersGroup.clearLayers();
-
-    const validPoints = logs.filter(l => l.lat != null && l.lng != null);
-
-    if (validPoints.length === 0) {
-      return;
-    }
-
+    // Add all log markers
     const latLngBounds: [number, number][] = [];
 
     validPoints.forEach(entry => {
@@ -209,12 +201,39 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
 
     if (latLngBounds.length > 0) {
       if (latLngBounds.length === 1) {
-        mapInstanceRef.current.setView(latLngBounds[0], 14);
+        map.setView(latLngBounds[0], 14);
       } else {
-        mapInstanceRef.current.fitBounds(latLngBounds, { padding: [40, 40], maxZoom: 15 });
+        map.fitBounds(latLngBounds, { padding: [40, 40], maxZoom: 15 });
       }
     }
-  }, [logs, isMapMode, currentCategory]);
+
+    // Force map to compute correct dimensions
+    const resizeTimer1 = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    const resizeTimer2 = setTimeout(() => {
+      map.invalidateSize();
+    }, 300);
+
+    const resizeTimer3 = setTimeout(() => {
+      map.invalidateSize();
+    }, 800);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      clearTimeout(resizeTimer1);
+      clearTimeout(resizeTimer2);
+      clearTimeout(resizeTimer3);
+      window.removeEventListener('resize', handleResize);
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, [logs, loading, isMapMode, currentCategory]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-in fade-in duration-200">
@@ -376,7 +395,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
               {/* Overlay Badge */}
               <div className="absolute top-4 left-4 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700 shadow-sm text-xs font-medium text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentCategory.themeColor }} />
-                <span>CartoDB Positron 淺色極簡地圖 ({logs.filter(l => l.lat != null).length} 個打卡點)</span>
+                <span>OpenStreetMap 開源地圖 ({logs.filter(l => l.lat != null).length} 個打卡點)</span>
               </div>
             </div>
 

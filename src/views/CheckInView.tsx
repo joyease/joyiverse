@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Compass, 
   Activity, 
@@ -14,6 +14,7 @@ import {
   Map as MapIcon,
   RefreshCw
 } from 'lucide-react';
+import L from 'leaflet';
 import { LogType, NavigationTab } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { createLog } from '../services/logService';
@@ -40,6 +41,11 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
   const [gpsMessage, setGpsMessage] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Mini Map Refs
+  const miniMapContainerRef = useRef<HTMLDivElement>(null);
+  const miniMapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
   // Automatically attempt GPS retrieval on view load
   const acquireGps = () => {
     if (!navigator.geolocation) {
@@ -62,7 +68,11 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
       (err) => {
         console.warn("Geolocation warning:", err.message);
         setGpsStatus('failed');
-        setGpsMessage('無法取得精確 GPS，將以無定位模式儲存（仍可正常提交）');
+        setGpsMessage('無法取得精確 GPS，點選下方地圖即可手動指定打卡位置');
+        // Default to Taiwan center if GPS fails so user can click map
+        if (!coords) {
+          setCoords({ lat: 25.0330, lng: 121.5654 });
+        }
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
@@ -71,6 +81,85 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
   useEffect(() => {
     acquireGps();
   }, []);
+
+  // Mini Leaflet Map Initialization
+  useEffect(() => {
+    if (!miniMapContainerRef.current) return;
+
+    if (miniMapRef.current) {
+      miniMapRef.current.remove();
+      miniMapRef.current = null;
+    }
+
+    const defaultLat = coords?.lat || 25.0330;
+    const defaultLng = coords?.lng || 121.5654;
+
+    const map = L.map(miniMapContainerRef.current, {
+      center: [defaultLat, defaultLng],
+      zoom: 14,
+      zoomControl: true,
+      attributionControl: false,
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      subdomains: ['a', 'b', 'c'],
+      maxZoom: 19,
+    }).addTo(map);
+
+    const customIcon = L.divIcon({
+      className: 'custom-checkin-pin',
+      html: `
+        <div class="marker-pin" style="background-color: #0284c7;">
+          <span class="marker-inner-icon">📍</span>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+    });
+
+    const marker = L.marker([defaultLat, defaultLng], { 
+      icon: customIcon,
+      draggable: true,
+    }).addTo(map);
+
+    marker.on('dragend', (e) => {
+      const newPos = e.target.getLatLng();
+      setCoords({ lat: Number(newPos.lat.toFixed(5)), lng: Number(newPos.lng.toFixed(5)) });
+      setGpsStatus('success');
+      setGpsMessage(`手動調整座標：${newPos.lat.toFixed(5)}, ${newPos.lng.toFixed(5)}`);
+    });
+
+    map.on('click', (e) => {
+      const clickPos = e.latlng;
+      marker.setLatLng(clickPos);
+      setCoords({ lat: Number(clickPos.lat.toFixed(5)), lng: Number(clickPos.lng.toFixed(5)) });
+      setGpsStatus('success');
+      setGpsMessage(`已設定地圖點選座標：${clickPos.lat.toFixed(5)}, ${clickPos.lng.toFixed(5)}`);
+    });
+
+    miniMapRef.current = map;
+    markerRef.current = marker;
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
+    return () => {
+      map.remove();
+      miniMapRef.current = null;
+    };
+  }, []);
+
+  // Update marker position when coords change
+  useEffect(() => {
+    if (miniMapRef.current && markerRef.current && coords) {
+      markerRef.current.setLatLng([coords.lat, coords.lng]);
+      miniMapRef.current.setView([coords.lat, coords.lng], 15);
+      setTimeout(() => {
+        miniMapRef.current?.invalidateSize();
+      }, 100);
+    }
+  }, [coords]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,9 +188,10 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
       // Reset form
       setNote('');
       setLocationName('');
-    } catch (e) {
-      console.error(e);
-      showToast('打卡提交時發生錯誤，請稍後重試', 'error');
+      onSuccessNavigate('map');
+    } catch (e: any) {
+      console.error("Check-in error:", e);
+      showToast('儲存失敗，請檢查網路狀態後再試一次', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -194,6 +284,21 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Interactive OpenStreetMap Mini Preview & Picker */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1 font-medium">
+                <MapIcon className="w-3.5 h-3.5 text-sky-500" />
+                <span>OpenStreetMap 地圖座標預覽 (可直接拖曳標記或點擊地圖選點)</span>
+              </span>
+            </div>
+            <div 
+              ref={miniMapContainerRef}
+              className="w-full h-44 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner z-0 relative"
+              id="checkin-mini-map"
+            />
           </div>
 
           {/* Optional Location Name field */}

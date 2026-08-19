@@ -7,13 +7,8 @@ import {
   PenLine, 
   Film, 
   ChevronRight, 
-  MapPin, 
-  PenTool, 
-  Search,
-  Sparkles,
-  Heart,
-  TrendingUp,
-  Map as MapIcon
+  Map as MapIcon,
+  BookText
 } from 'lucide-react';
 import { CATEGORIES } from '../data/categories';
 import { LogType, NavigationTab } from '../types';
@@ -32,197 +27,137 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Film,
 };
 
+const CATEGORY_DEEP_THEMES: Record<LogType, {
+  gradient: string;
+  borderColor: string;
+  iconBg: string;
+  tagBg: string;
+  modeLabel: string;
+  isMap: boolean;
+}> = {
+  '旅行': {
+    gradient: 'from-sky-950 via-sky-900 to-slate-950',
+    borderColor: 'border-sky-800/60 hover:border-sky-500/80',
+    iconBg: 'bg-sky-500/20 text-sky-300',
+    tagBg: 'bg-sky-500/20 text-sky-200 border-sky-500/40',
+    modeLabel: 'GPS 地圖足跡',
+    isMap: true,
+  },
+  '運動': {
+    gradient: 'from-emerald-950 via-emerald-900 to-slate-950',
+    borderColor: 'border-emerald-800/60 hover:border-emerald-500/80',
+    iconBg: 'bg-emerald-500/20 text-emerald-300',
+    tagBg: 'bg-emerald-500/20 text-emerald-200 border-emerald-500/40',
+    modeLabel: 'GPS 地圖足跡',
+    isMap: true,
+  },
+  '美食': {
+    gradient: 'from-amber-950 via-amber-900 to-stone-950',
+    borderColor: 'border-amber-800/60 hover:border-amber-500/80',
+    iconBg: 'bg-amber-500/20 text-amber-300',
+    tagBg: 'bg-amber-500/20 text-amber-200 border-amber-500/40',
+    modeLabel: 'GPS 地圖足跡',
+    isMap: true,
+  },
+  '閱讀': {
+    gradient: 'from-violet-950 via-violet-900 to-slate-950',
+    borderColor: 'border-violet-800/60 hover:border-violet-500/80',
+    iconBg: 'bg-violet-500/20 text-violet-300',
+    tagBg: 'bg-violet-500/20 text-violet-200 border-violet-500/40',
+    modeLabel: '文字心得日記',
+    isMap: false,
+  },
+  '寫字': {
+    gradient: 'from-rose-950 via-rose-900 to-slate-950',
+    borderColor: 'border-rose-800/60 hover:border-rose-500/80',
+    iconBg: 'bg-rose-500/20 text-rose-300',
+    tagBg: 'bg-rose-500/20 text-rose-200 border-rose-500/40',
+    modeLabel: '文字心得日記',
+    isMap: false,
+  },
+  '影片': {
+    gradient: 'from-indigo-950 via-indigo-900 to-slate-950',
+    borderColor: 'border-indigo-800/60 hover:border-indigo-500/80',
+    iconBg: 'bg-indigo-500/20 text-indigo-300',
+    tagBg: 'bg-indigo-500/20 text-indigo-200 border-indigo-500/40',
+    modeLabel: '文字心得日記',
+    isMap: false,
+  },
+};
+
 export const HomeView: React.FC<HomeViewProps> = ({ onSelectCategory, onNavigateTab }) => {
-  const outdoorCategories = CATEGORIES.filter(c => c.group === 'outdoor');
-  const lifeCategories = CATEGORIES.filter(c => c.group === 'life');
-
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 animate-in fade-in duration-200">
-      {/* Hero Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-500 via-rose-600 to-amber-500 text-white p-6 sm:p-8 shadow-lg shadow-rose-500/15">
-        <div className="relative z-10 max-w-xl space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-medium tracking-wide">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>日常足跡與生活靈感紀錄</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">
-            記錄每一個微小而幸福的日常瞬間
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4 animate-in fade-in duration-200">
+      {/* 6 Horizontal Deep-Colored Blocks Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between px-1 mb-1">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <span>日常足跡與生活靈感隨記</span>
           </h1>
-          <p className="text-white/90 text-sm leading-relaxed">
-            透過簡約地圖打卡記錄探險足跡，用細膩文字留下心靈共鳴。隨時隨地，探索自己與朋友的幸福歷程。
-          </p>
-
-          {/* Quick Action Buttons */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
-            <button
-              onClick={() => onNavigateTab('checkin')}
-              className="px-4 py-2.5 bg-white text-rose-600 font-semibold text-xs sm:text-sm rounded-2xl shadow-sm hover:bg-rose-50 transition-all flex items-center gap-2 cursor-pointer"
-              id="hero-quick-checkin-btn"
-            >
-              <MapPin className="w-4 h-4 text-rose-500" />
-              <span>立即 GPS 打卡</span>
-            </button>
-
-            <button
-              onClick={() => onNavigateTab('input')}
-              className="px-4 py-2.5 bg-white/15 hover:bg-white/25 backdrop-blur-md text-white font-semibold text-xs sm:text-sm rounded-2xl border border-white/30 transition-all flex items-center gap-2 cursor-pointer"
-              id="hero-quick-input-btn"
-            >
-              <PenTool className="w-4 h-4" />
-              <span>隨筆靈感輸入</span>
-            </button>
-          </div>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            點選進入公開查詢
+          </span>
         </div>
 
-        {/* Decorative background visual circles */}
-        <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-        <div className="absolute right-12 top-6 w-32 h-32 rounded-full bg-amber-400/20 blur-xl pointer-events-none" />
-      </div>
+        {/* Six Horizontal Strip Cards */}
+        <div className="flex flex-col gap-3">
+          {CATEGORIES.map(cat => {
+            const Icon = ICON_MAP[cat.iconName] || Compass;
+            const theme = CATEGORY_DEEP_THEMES[cat.type] || {
+              gradient: 'from-slate-900 via-slate-800 to-slate-950',
+              borderColor: 'border-slate-800 hover:border-slate-600',
+              iconBg: 'bg-white/10 text-white',
+              tagBg: 'bg-white/10 text-white border-white/20',
+              modeLabel: '探索模式',
+              isMap: false,
+            };
 
-      {/* 6 Big Blocks Section */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <span>探索 6 大幸福主題</span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-normal">
-                公開查詢 & 專屬視圖
-              </span>
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              點擊任一主題區塊，輸入 Gmail 即可公開檢視該類別近 1 個月的足跡地圖或心得日誌
-            </p>
-          </div>
-        </div>
+            return (
+              <button
+                key={cat.type}
+                onClick={() => onSelectCategory(cat.type)}
+                className={`w-full text-left p-4 sm:p-5 rounded-2xl bg-gradient-to-r ${theme.gradient} border ${theme.borderColor} shadow-md hover:shadow-xl transition-all duration-200 flex items-center justify-between cursor-pointer group active:scale-[0.99] focus:outline-none`}
+                id={`home-block-${cat.type}`}
+              >
+                {/* Left side: Icon + Bold White Title + Mode Badge */}
+                <div className="flex items-center gap-3.5 sm:gap-4">
+                  <div
+                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center shadow-inner border border-white/10 ${theme.iconBg} group-hover:scale-105 transition-transform flex-shrink-0`}
+                  >
+                    <Icon className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </div>
 
-        {/* Group 1: 動態戶外組 (地圖打卡模式) */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-sky-700 dark:text-sky-300 tracking-wide uppercase">
-            <span className="w-2 h-2 rounded-full bg-sky-500" />
-            <span>動態戶外組 (地圖視覺化)</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {outdoorCategories.map(cat => {
-              const Icon = ICON_MAP[cat.iconName] || Compass;
-              return (
-                <button
-                  key={cat.type}
-                  onClick={() => onSelectCategory(cat.type)}
-                  className={`group relative text-left p-5 rounded-3xl bg-gradient-to-br ${cat.bgGradient} border border-slate-200/80 dark:border-slate-800/80 ${cat.borderHover} shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer focus:outline-none`}
-                  id={`home-block-${cat.type}`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm"
-                        style={{ backgroundColor: `${cat.themeColor}15`, color: cat.themeColor }}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50 flex items-center gap-1">
-                        <MapIcon className="w-3 h-3 text-sky-500" />
-                        地圖模式
-                      </span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:translate-x-0.5 transition-transform">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                    <span className="text-xl sm:text-2xl font-bold text-white tracking-wide group-hover:translate-x-0.5 transition-transform">
                       {cat.name}
-                    </h3>
-                    <p className={`text-xs font-medium ${cat.textColor} mb-2`}>
-                      {cat.subtitle}
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                      {cat.description}
-                    </p>
-                  </div>
+                    </span>
 
-                  <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-750/60 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-200 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
-                    <span>進入公開查詢</span>
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <span className={`inline-flex items-center gap-1 text-[11px] sm:text-xs font-medium px-2.5 py-0.5 rounded-full border ${theme.tagBg} self-start sm:self-center`}>
+                      {theme.isMap ? (
+                        <MapIcon className="w-3 h-3" />
+                      ) : (
+                        <BookText className="w-3 h-3" />
+                      )}
+                      <span>{theme.modeLabel}</span>
+                    </span>
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                </div>
+
+                {/* Right side: Sleek chevron */}
+                <div className="flex items-center gap-1 text-white/80 group-hover:text-white transition-colors flex-shrink-0 pl-2">
+                  <span className="hidden sm:inline text-xs font-medium text-white/70 group-hover:text-white">
+                    查看
+                  </span>
+                  <div className="w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 flex items-center justify-center transition-colors">
+                    <ChevronRight className="w-4 h-4 text-white group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
-
-        {/* Group 2: 靜態生活組 (清單倒序模式) */}
-        <div className="space-y-3 pt-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-violet-700 dark:text-violet-300 tracking-wide uppercase">
-            <span className="w-2 h-2 rounded-full bg-violet-500" />
-            <span>靜態生活組 (心靈與文字清單)</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {lifeCategories.map(cat => {
-              const Icon = ICON_MAP[cat.iconName] || BookOpen;
-              return (
-                <button
-                  key={cat.type}
-                  onClick={() => onSelectCategory(cat.type)}
-                  className={`group relative text-left p-5 rounded-3xl bg-gradient-to-br ${cat.bgGradient} border border-slate-200/80 dark:border-slate-800/80 ${cat.borderHover} shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer focus:outline-none`}
-                  id={`home-block-${cat.type}`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div
-                        className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm"
-                        style={{ backgroundColor: `${cat.themeColor}15`, color: cat.themeColor }}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50">
-                        日誌清單
-                      </span>
-                    </div>
-
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:translate-x-0.5 transition-transform">
-                      {cat.name}
-                    </h3>
-                    <p className={`text-xs font-medium ${cat.textColor} mb-2`}>
-                      {cat.subtitle}
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                      {cat.description}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-750/60 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-200 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
-                    <span>進入公開查詢</span>
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Feature Explanations footer card */}
-      <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 flex items-center justify-center flex-shrink-0">
-            <Heart className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">
-              純淨・簡約・永續紀錄
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              無廣告、無多餘多媒體負擔，專注於生活的真實軌跡與心得沉澱。
-            </p>
-          </div>
-        </div>
-
-        <button
-          onClick={() => onNavigateTab('logs')}
-          className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-1 cursor-pointer"
-        >
-          <span>查看個人總覽圖表</span>
-          <TrendingUp className="w-3.5 h-3.5" />
-        </button>
       </div>
     </div>
   );
 };
+

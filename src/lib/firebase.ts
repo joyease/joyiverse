@@ -73,13 +73,23 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 // Firebase Configuration
+const rawApiKey = import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDLRUdJHUZyd1rO0qnN8z0jEQlg86q9QRQ";
+const rawProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || "joyiverse-c0601";
+
+export const isRealFirebaseConfigured = Boolean(
+  rawApiKey &&
+  !rawApiKey.includes('DummyKey') &&
+  rawProjectId &&
+  rawProjectId !== 'joyful-life-log'
+);
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDummyKeyForPreviewModeOnly12345",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "joyful-life-log.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "joyful-life-log",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "joyful-life-log.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "1234567890",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:1234567890:web:abcdef123456"
+  apiKey: rawApiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "joyiverse-c0601.firebaseapp.com",
+  projectId: rawProjectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "joyiverse-c0601.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "637809504937",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:637809504937:web:8484051747b92c08f66fb8"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
