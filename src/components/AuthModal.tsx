@@ -60,15 +60,15 @@ export const AuthModal: React.FC = () => {
         <div className="space-y-2.5 mb-6 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-            <span>記錄旅行、運動、美食 GPS 打卡足跡與熱力圖</span>
+            <span>記錄旅行、運動、美食 GPS 打卡足跡與地圖</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-            <span>撰寫閱讀、寫字、影片的心得隨想與感恩日記</span>
+            <span>撰寫閱讀、寫字、影片的心得隨想與隨筆日記</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-            <span>自訂公開或私有隱私權限，支援他人以 Gmail 查詢</span>
+            <span>自訂公開或私有隱私權限，支援以 Gmail 查詢</span>
           </div>
         </div>
 
@@ -110,7 +110,7 @@ export const AuthModal: React.FC = () => {
                 className="text-xs text-slate-500 dark:text-slate-400 hover:text-rose-500 dark:hover:text-rose-400 underline transition-colors cursor-pointer"
                 id="toggle-custom-email-btn"
               >
-                或使用指定 Gmail 帳號登入體驗
+                或直接輸入指定 Gmail 體驗
               </button>
             </div>
           ) : (
@@ -124,7 +124,7 @@ export const AuthModal: React.FC = () => {
                   <input
                     type="email"
                     required
-                    placeholder="yourname@gmail.com"
+                    placeholder="請輸入你或朋友的 gmail"
                     value={customEmail}
                     onChange={(e) => setCustomEmail(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
@@ -138,7 +138,7 @@ export const AuthModal: React.FC = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="例如：小明"
+                  placeholder="自訂暱稱 (例如：小明)"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"

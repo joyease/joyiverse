@@ -52,8 +52,8 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
   const isMapMode = currentCategory.group === 'outdoor';
 
   // State
-  const [targetEmail, setTargetEmail] = useState<string>(user?.email || 'hermanntalk@gmail.com');
-  const [searchQuery, setSearchQuery] = useState<string>(targetEmail);
+  const [targetEmail, setTargetEmail] = useState<string>(user?.email || '');
+  const [searchQuery, setSearchQuery] = useState<string>(user?.email || '');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [hasSearched, setHasSearched] = useState<boolean>(false);
@@ -86,16 +86,16 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
   };
 
   useEffect(() => {
-    if (searchQuery) {
+    if (searchQuery && searchQuery.trim()) {
       performSearch(searchQuery);
     }
   }, [categoryType]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery) {
-      setTargetEmail(searchQuery);
-      performSearch(searchQuery);
+    if (searchQuery.trim()) {
+      setTargetEmail(searchQuery.trim());
+      performSearch(searchQuery.trim());
     }
   };
 
@@ -139,7 +139,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
     // Add Zoom Control top right
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // OpenStreetMap Layer (Standard OSM, identical to peak100)
+    // OpenStreetMap Layer (Standard OSM)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
       subdomains: ['a', 'b', 'c'],
@@ -294,7 +294,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
             <input
               type="email"
               required
-              placeholder="輸入目標 Gmail (例: hermanntalk@gmail.com)"
+              placeholder="請輸入你或朋友的 gmail"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
@@ -304,7 +304,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !searchQuery.trim()}
             className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-rose-500 dark:hover:bg-rose-600 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
             id="public-search-submit-btn"
           >
@@ -313,64 +313,68 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
           </button>
         </form>
 
-        {/* Quick hint & demo tags */}
-        <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-          <span className="flex items-center gap-1">
-            <Info className="w-3.5 h-3.5 text-slate-400" />
-            <span>範例帳號：</span>
-          </span>
-          <button
-            onClick={() => {
-              setSearchQuery('hermanntalk@gmail.com');
-              setTargetEmail('hermanntalk@gmail.com');
-              performSearch('hermanntalk@gmail.com');
-            }}
-            className="text-rose-600 dark:text-rose-400 underline cursor-pointer"
-          >
-            hermanntalk@gmail.com
-          </button>
-          {user && user.email !== 'hermanntalk@gmail.com' && (
+        {user && user.email && (
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-1">
+            <span>我的帳號：</span>
             <button
+              type="button"
               onClick={() => {
                 setSearchQuery(user.email);
                 setTargetEmail(user.email);
                 performSearch(user.email);
               }}
-              className="text-indigo-600 dark:text-indigo-400 underline cursor-pointer"
+              className="text-indigo-600 dark:text-indigo-400 font-medium underline cursor-pointer"
             >
-              我的帳號 ({user.email})
+              {user.email} (點擊快速查詢)
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Query Results Presentation */}
       <div className="space-y-4">
         {/* Status Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-slate-900 dark:text-white">
-              查詢結果
-            </span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-              {targetEmail}
+        {targetEmail && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                查詢結果
+              </span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                {targetEmail}
+              </span>
+            </div>
+
+            <span className="text-xs text-slate-500">
+              {logs.length > 0 ? `共 ${logs.length} 筆公開紀錄` : ''}
             </span>
           </div>
-
-          <span className="text-xs text-slate-500">
-            {logs.length > 0 ? `共 ${logs.length} 筆公開紀錄` : ''}
-          </span>
-        </div>
+        )}
 
         {/* Loading state */}
         {loading && (
           <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
             <div className="w-8 h-8 border-3 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-xs text-slate-500">正在安全讀取公開日誌中...</p>
+            <p className="text-xs text-slate-500">正在讀取公開日誌中...</p>
           </div>
         )}
 
-        {/* Empty State / Privacy Protection (Specification: 查無近期紀錄) */}
+        {/* Initial Prompt when not searched yet */}
+        {!loading && !hasSearched && (
+          <div className="p-10 text-center bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+              <Search className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+              請輸入 Gmail 進行查詢
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
+              輸入您或朋友的 Gmail 地址，即可瀏覽近 1 個月公開分享的「{currentCategory.name}」足跡與隨筆。
+            </p>
+          </div>
+        )}
+
+        {/* Empty State / Privacy Protection */}
         {!loading && hasSearched && logs.length === 0 && (
           <div className="p-10 text-center bg-slate-50 dark:bg-slate-900/50 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2">
             <div className="w-12 h-12 rounded-2xl bg-slate-200 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
@@ -395,7 +399,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
               {/* Overlay Badge */}
               <div className="absolute top-4 left-4 z-20 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-200/80 dark:border-slate-700 shadow-sm text-xs font-medium text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentCategory.themeColor }} />
-                <span>OpenStreetMap 開源地圖 ({logs.filter(l => l.lat != null).length} 個打卡點)</span>
+                <span>OpenStreetMap 地圖 ({logs.filter(l => l.lat != null).length} 個打卡點)</span>
               </div>
             </div>
 
@@ -446,7 +450,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
         {/* Mode B: Life List Mode (Reading, Writing, Video) with Pagination */}
         {!loading && logs.length > 0 && !isMapMode && (
           <div className="space-y-3">
-            {logs.slice(0, visibleCount).map((entry, idx) => {
+            {logs.slice(0, visibleCount).map((entry) => {
               const dateStr = new Date(entry.createdAt).toLocaleDateString('zh-TW', {
                 year: 'numeric',
                 month: 'short',

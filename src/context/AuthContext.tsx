@@ -39,13 +39,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       // ignore
     }
-    // Default initial preview user
-    return {
-      uid: 'user-hermann-1992',
-      email: 'hermanntalk@gmail.com',
-      displayName: 'Hermann',
-      photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-    };
+    // No preset default user
+    return null;
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -103,21 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     } catch (error: any) {
-      console.warn("Google popup login encountered notice, falling back to simulated Google account:", error);
-      // Fallback for iframe environments that block popup
-      const defaultUser: AppUser = {
-        uid: 'user-' + Date.now(),
-        email: 'hermanntalk@gmail.com',
-        displayName: 'Hermann',
-        photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-      };
-      setUser(defaultUser);
-      localStorage.setItem(DEMO_USER_KEY, JSON.stringify(defaultUser));
-      setIsAuthModalOpen(false);
-      if (pendingAction) {
-        pendingAction();
-        setPendingAction(null);
-      }
+      console.warn("Google popup login encountered notice:", error);
     }
   };
 
