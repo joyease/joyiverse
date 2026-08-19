@@ -92,7 +92,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onSelectCategory, onNavigate
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1 mb-1">
           <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <span>日常足跡與生活靈感隨記</span>
+            <span>幸福時空 ‧ 生活隨記</span>
           </h1>
           <span className="text-xs text-slate-500 dark:text-slate-400">
             點選進入公開查詢
@@ -160,4 +160,3 @@ export const HomeView: React.FC<HomeViewProps> = ({ onSelectCategory, onNavigate
     </div>
   );
 };
-

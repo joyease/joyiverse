@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome }) => {
                 Joyiverse
               </span>
               <span className="hidden sm:inline-block px-2 py-0.5 text-[11px] font-medium bg-rose-950/80 border border-rose-800/60 text-rose-300 rounded-full">
-                生活足跡・日誌
+                幸福時空・生活隨記
               </span>
             </div>
             <p className="text-xs text-slate-400 hidden xs:block">
@@ -39,13 +39,13 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome }) => {
 
         {/* Right: 2 Icons */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Icon 1: 關於 Icon */}
+          {/* Icon 1: 關於 Icon (?) */}
           <a
-            href="https://sites.google.com/view/joyiverse"
+            href="https://joyiverse.wordpress.com"
             target="_blank"
             rel="noopener noreferrer"
             className="p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all flex items-center gap-1.5 focus:outline-none"
-            title="關於 Joyiverse (FAQ 與個資宣告)"
+            title="關於 Joyiverse (FAQ 與說明)"
             id="header-about-link"
           >
             <HelpCircle className="w-5 h-5" />
@@ -146,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome }) => {
 
                   <div className="pt-2 border-t border-slate-800 space-y-1">
                     <a
-                      href="https://sites.google.com/view/joyiverse"
+                      href="https://joyiverse.wordpress.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 transition-colors"

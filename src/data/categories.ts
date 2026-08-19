@@ -6,7 +6,7 @@ export const CATEGORIES: CategoryMeta[] = [
     type: '旅行',
     group: 'outdoor',
     name: '旅行',
-    subtitle: '探索與足跡',
+    subtitle: '陌生點打卡地圖',
     iconName: 'Compass',
     themeColor: '#0ea5e9', // sky-500
     bgGradient: 'from-sky-50 to-sky-100/60 dark:from-sky-950/40 dark:to-sky-900/20',
@@ -19,7 +19,7 @@ export const CATEGORIES: CategoryMeta[] = [
     type: '運動',
     group: 'outdoor',
     name: '運動',
-    subtitle: '活力與汗水',
+    subtitle: '揮汗前打卡地圖',
     iconName: 'Activity',
     themeColor: '#10b981', // emerald-500
     bgGradient: 'from-emerald-50 to-emerald-100/60 dark:from-emerald-950/40 dark:to-emerald-900/20',
@@ -32,7 +32,7 @@ export const CATEGORIES: CategoryMeta[] = [
     type: '美食',
     group: 'outdoor',
     name: '美食',
-    subtitle: '風味與日常',
+    subtitle: '好食物打卡地圖',
     iconName: 'Utensils',
     themeColor: '#f59e0b', // amber-500
     bgGradient: 'from-amber-50 to-amber-100/60 dark:from-amber-950/40 dark:to-amber-900/20',
@@ -47,7 +47,7 @@ export const CATEGORIES: CategoryMeta[] = [
     type: '閱讀',
     group: 'life',
     name: '閱讀',
-    subtitle: '知識與心靈',
+    subtitle: '讀些什麼有啟發',
     iconName: 'BookOpen',
     themeColor: '#8b5cf6', // violet-500
     bgGradient: 'from-violet-50 to-violet-100/60 dark:from-violet-950/40 dark:to-violet-900/20',
@@ -60,7 +60,7 @@ export const CATEGORIES: CategoryMeta[] = [
     type: '寫字',
     group: 'life',
     name: '寫字',
-    subtitle: '靈感與日記',
+    subtitle: '寫些什麼好修心',
     iconName: 'PenLine',
     themeColor: '#ec4899', // pink-500
     bgGradient: 'from-pink-50 to-pink-100/60 dark:from-pink-950/40 dark:to-pink-900/20',
@@ -73,7 +73,7 @@ export const CATEGORIES: CategoryMeta[] = [
     type: '影片',
     group: 'life',
     name: '影片',
-    subtitle: '影像與共鳴',
+    subtitle: '觀賞什麼好玩意',
     iconName: 'Film',
     themeColor: '#6366f1', // indigo-500
     bgGradient: 'from-indigo-50 to-indigo-100/60 dark:from-indigo-950/40 dark:to-indigo-900/20',
