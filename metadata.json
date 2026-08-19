@@ -1,0 +1,6 @@
+{
+  "name": "Joyiverse",
+  "description": "簡約清爽的生活足跡與日誌 Web 應用程式，支援打卡、GPS 個人足跡熱力圖、生活紀錄與統計可視化。",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

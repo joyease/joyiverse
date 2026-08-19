@@ -1,0 +1,74 @@
+{
+  "entities": {
+    "Log": {
+      "title": "Log",
+      "description": "A single joyful life log entry (either check-in or static life record)",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The creator user email (e.g. user@gmail.com)"
+        },
+        "userDisplayName": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 100
+        },
+        "userPhotoURL": {
+          "type": "string",
+          "description": "User avatar photo URL",
+          "maxLength": 500
+        },
+        "type": {
+          "type": "string",
+          "enum": ["旅行", "運動", "美食", "閱讀", "寫字", "影片"],
+          "description": "The category type of the log"
+        },
+        "categoryGroup": {
+          "type": "string",
+          "enum": ["outdoor", "life"],
+          "description": "Category group: outdoor for GPS check-in, life for text entry"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Note or reflection content"
+        },
+        "lat": {
+          "type": "number",
+          "description": "Latitude for outdoor check-in"
+        },
+        "lng": {
+          "type": "number",
+          "description": "Longitude for outdoor check-in"
+        },
+        "locationName": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Optional human-readable location name"
+        },
+        "isPublic": {
+          "type": "boolean",
+          "description": "Whether this log is publicly queryable by user email"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the record was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the record was last updated"
+        }
+      },
+      "required": ["userId", "type", "categoryGroup", "note", "isPublic", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/logs/{logId}": {
+      "schema": "Log",
+      "description": "Collection of joyful life logs"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUserEmail(email) {
+      return isSignedIn() && request.auth.token.email == email;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidLog(data) {
+      return data.userId is string && data.userId.size() <= 120
+        && data.type in ['旅行', '運動', '美食', '閱讀', '寫字', '影片']
+        && data.categoryGroup in ['outdoor', 'life']
+        && data.note is string && data.note.size() <= 2000
+        && data.isPublic is bool
+        && (data.categoryGroup != 'outdoor' || data.lat == null || (data.lat is number && data.lat >= -90.0 && data.lat <= 90.0))
+        && (data.categoryGroup != 'outdoor' || data.lng == null || (data.lng is number && data.lng >= -180.0 && data.lng <= 180.0));
+    }
+
+    // Logs Collection Rules
+    match /logs/{logId} {
+      // Public logs can be queried by Gmail / read; private logs only readable by owner
+      allow get, list: if resource.data.isPublic == true || isUserEmail(resource.data.userId);
+
+      // Create: only signed-in users where email matches userId
+      allow create: if isUserEmail(request.resource.data.userId) && isValidLog(request.resource.data);
+
+      // Update: only log owner
+      allow update: if isUserEmail(resource.data.userId) 
+                    && isUserEmail(request.resource.data.userId) 
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && isValidLog(request.resource.data);
+
+      // Delete: only log owner
+      allow delete: if isUserEmail(resource.data.userId);
+    }
+  }
+}
