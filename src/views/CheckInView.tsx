@@ -12,13 +12,16 @@ import {
   Lock,
   ArrowRight,
   Map as MapIcon,
-  RefreshCw
+  RefreshCw,
+  Crosshair,
+  Info
 } from 'lucide-react';
 import L from 'leaflet';
 import { LogType, NavigationTab } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { createLog } from '../services/logService';
 import { useAuth } from '../context/AuthContext';
+import { getAccurateLocation, LocationResult } from '../services/locationService';
 
 interface CheckInViewProps {
   onSuccessNavigate: (tab: NavigationTab) => void;
@@ -39,43 +42,52 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'locating' | 'success' | 'failed'>('idle');
   const [gpsMessage, setGpsMessage] = useState<string>('');
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Mini Map Refs
   const miniMapContainerRef = useRef<HTMLDivElement>(null);
   const miniMapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const accuracyCircleRef = useRef<L.Circle | null>(null);
 
-  // Automatically attempt GPS retrieval on view load
-  const acquireGps = () => {
-    if (!navigator.geolocation) {
-      setGpsStatus('failed');
-      setGpsMessage('瀏覽器不支援 Geolocation，將以無定位模式儲存');
-      return;
-    }
-
+  // 取得 GPS 定位邏輯
+  const acquireGps = async () => {
     setGpsStatus('locating');
-    setGpsMessage('正在透過 GPS 定位當前經緯度...');
+    setGpsMessage('正在啟動 GPS 與網路定位，請稍候...');
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = Number(pos.coords.latitude.toFixed(5));
-        const lng = Number(pos.coords.longitude.toFixed(5));
-        setCoords({ lat, lng });
-        setGpsStatus('success');
-        setGpsMessage(`定位成功：${lat}, ${lng} (精準度 ±${Math.round(pos.coords.accuracy)}m)`);
-      },
-      (err) => {
-        console.warn("Geolocation warning:", err.message);
+    try {
+      const result: LocationResult = await getAccurateLocation();
+      setCoords({ lat: result.lat, lng: result.lng });
+      setAccuracy(result.accuracy);
+      
+      if (result.source === 'manual') {
         setGpsStatus('failed');
-        setGpsMessage('無法取得精確 GPS，點選下方地圖即可手動指定打卡位置');
-        // Default to Taiwan center if GPS fails so user can click map
-        if (!coords) {
-          setCoords({ lat: 25.0330, lng: 121.5654 });
+        setGpsMessage(result.message);
+      } else {
+        setGpsStatus('success');
+        setGpsMessage(result.message);
+      }
+
+      // 若地圖已建立，立即移動地圖中心並平滑聚焦
+      if (miniMapRef.current) {
+        miniMapRef.current.setView([result.lat, result.lng], 16, { animate: true });
+        if (markerRef.current) {
+          markerRef.current.setLatLng([result.lat, result.lng]);
         }
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-    );
+        if (accuracyCircleRef.current) {
+          accuracyCircleRef.current.setLatLng([result.lat, result.lng]);
+          accuracyCircleRef.current.setRadius(Math.min(result.accuracy, 500));
+        }
+      }
+    } catch (err: any) {
+      console.warn("GPS acquisition exception:", err);
+      setGpsStatus('failed');
+      setGpsMessage('無法取得 GPS 座標，已啟用手動點選模式，點擊下方地圖即可標記地點');
+      if (!coords) {
+        setCoords({ lat: 25.0330, lng: 121.5654 });
+      }
+    }
   };
 
   useEffect(() => {
@@ -96,7 +108,7 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
 
     const map = L.map(miniMapContainerRef.current, {
       center: [defaultLat, defaultLng],
-      zoom: 14,
+      zoom: 15,
       zoomControl: true,
       attributionControl: false,
     });
@@ -122,44 +134,73 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
       draggable: true,
     }).addTo(map);
 
+    const accuracyCircle = L.circle([defaultLat, defaultLng], {
+      radius: accuracy || 50,
+      color: '#0284c7',
+      fillColor: '#38bdf8',
+      fillOpacity: 0.15,
+      weight: 1,
+    }).addTo(map);
+
     marker.on('dragend', (e) => {
       const newPos = e.target.getLatLng();
-      setCoords({ lat: Number(newPos.lat.toFixed(5)), lng: Number(newPos.lng.toFixed(5)) });
+      const newLat = Number(newPos.lat.toFixed(5));
+      const newLng = Number(newPos.lng.toFixed(5));
+      setCoords({ lat: newLat, lng: newLng });
       setGpsStatus('success');
-      setGpsMessage(`手動調整座標：${newPos.lat.toFixed(5)}, ${newPos.lng.toFixed(5)}`);
+      setGpsMessage(`手動拖曳指定座標：${newLat}, ${newLng}`);
+      accuracyCircle.setLatLng([newLat, newLng]);
     });
 
     map.on('click', (e) => {
       const clickPos = e.latlng;
+      const clickLat = Number(clickPos.lat.toFixed(5));
+      const clickLng = Number(clickPos.lng.toFixed(5));
       marker.setLatLng(clickPos);
-      setCoords({ lat: Number(clickPos.lat.toFixed(5)), lng: Number(clickPos.lng.toFixed(5)) });
+      accuracyCircle.setLatLng(clickPos);
+      setCoords({ lat: clickLat, lng: clickLng });
       setGpsStatus('success');
-      setGpsMessage(`已設定地圖點選座標：${clickPos.lat.toFixed(5)}, ${clickPos.lng.toFixed(5)}`);
+      setGpsMessage(`已設定地圖點選座標：${clickLat}, ${clickLng}`);
     });
 
     miniMapRef.current = map;
     markerRef.current = marker;
+    accuracyCircleRef.current = accuracyCircle;
 
-    setTimeout(() => {
+    const t1 = setTimeout(() => {
       map.invalidateSize();
-    }, 200);
+    }, 150);
+
+    const t2 = setTimeout(() => {
+      map.invalidateSize();
+    }, 500);
 
     return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
       map.remove();
       miniMapRef.current = null;
+      markerRef.current = null;
+      accuracyCircleRef.current = null;
     };
   }, []);
 
-  // Update marker position when coords change
+  // Update marker position and center when coords state changes
   useEffect(() => {
     if (miniMapRef.current && markerRef.current && coords) {
       markerRef.current.setLatLng([coords.lat, coords.lng]);
-      miniMapRef.current.setView([coords.lat, coords.lng], 15);
+      if (accuracyCircleRef.current) {
+        accuracyCircleRef.current.setLatLng([coords.lat, coords.lng]);
+        if (accuracy) {
+          accuracyCircleRef.current.setRadius(Math.min(accuracy, 500));
+        }
+      }
+      miniMapRef.current.setView([coords.lat, coords.lng], miniMapRef.current.getZoom() || 15);
       setTimeout(() => {
         miniMapRef.current?.invalidateSize();
       }, 100);
     }
-  }, [coords]);
+  }, [coords, accuracy]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,42 +281,51 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
         {/* GPS Location Status & Fallback Info */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-              <Navigation className="w-3.5 h-3.5 text-sky-500" />
-              <span>GPS 地理座標</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Crosshair className="w-4 h-4 text-sky-500" />
+              <span>GPS 座標定位狀態</span>
             </span>
             <button
               type="button"
               onClick={acquireGps}
               disabled={gpsStatus === 'locating'}
-              className="text-xs text-sky-600 dark:text-sky-400 hover:text-sky-700 flex items-center gap-1 font-medium cursor-pointer"
+              className="text-xs px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/70 hover:bg-sky-100 dark:hover:bg-sky-900 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 flex items-center gap-1.5 font-bold transition-all cursor-pointer disabled:opacity-50"
+              id="re-locate-btn"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${gpsStatus === 'locating' ? 'animate-spin' : ''}`} />
-              <span>重新定位</span>
+              <span>{gpsStatus === 'locating' ? '定位中...' : '重新定位'}</span>
             </button>
           </div>
 
           <div
-            className={`p-3 rounded-2xl border text-xs flex items-start gap-2.5 ${
+            className={`p-3.5 rounded-2xl border text-xs flex items-start gap-3 transition-all ${
               gpsStatus === 'success'
-                ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-                : gpsStatus === 'failed'
-                ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300'
-                : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+                ? 'bg-emerald-50/80 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
+                : gpsStatus === 'locating'
+                ? 'bg-sky-50/80 dark:bg-sky-950/30 border-sky-300 dark:border-sky-800 text-sky-800 dark:text-sky-300 animate-pulse'
+                : 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300'
             }`}
           >
             {gpsStatus === 'success' ? (
-              <Navigation className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+              <Navigation className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+            ) : gpsStatus === 'locating' ? (
+              <RefreshCw className="w-4 h-4 text-sky-600 dark:text-sky-400 flex-shrink-0 mt-0.5 animate-spin" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             )}
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold">{gpsMessage || '準備定位中...'}</p>
-              {gpsStatus === 'failed' && (
-                <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
-                  提示：系統已啟用無定位降級模式，您依然可以填寫備註順利提交打卡。
-                </p>
-              )}
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-xs">{gpsMessage || '準備定位中...'}</p>
+                {coords && (
+                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-white/70 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700">
+                    {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <Info className="w-3 h-3 flex-shrink-0" />
+                <span>可直接在地圖上「點選」或「拖曳圖釘」微調定位打卡點</span>
+              </p>
             </div>
           </div>
 
@@ -283,7 +333,7 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
           <div className="space-y-1.5">
             <div 
               ref={miniMapContainerRef}
-              className="w-full h-36 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner z-0 relative"
+              className="w-full h-44 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner z-0 relative"
               id="checkin-mini-map"
             />
           </div>
