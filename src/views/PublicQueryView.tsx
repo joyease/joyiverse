@@ -29,7 +29,7 @@ import { useAuth } from '../context/AuthContext';
 interface PublicQueryViewProps {
   categoryType: LogType;
   onBack: () => void;
-  onSelectCategory: (type: LogType) => void;
+  onSelectCategory?: (type: LogType) => void;
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -44,7 +44,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
 export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
   categoryType,
   onBack,
-  onSelectCategory,
 }) => {
   const { user } = useAuth();
   const currentCategory = CATEGORY_MAP[categoryType] || CATEGORIES[0];
@@ -238,7 +237,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-in fade-in duration-200">
       {/* Top Header & Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
+      <div className="flex items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -264,40 +263,20 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
             </p>
           </div>
         </div>
-
-        {/* Category switcher pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
-          {CATEGORIES.map(cat => {
-            const isCurrent = cat.type === categoryType;
-            return (
-              <button
-                key={cat.type}
-                onClick={() => onSelectCategory(cat.type)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all cursor-pointer ${
-                  isCurrent
-                    ? 'bg-rose-500 text-white shadow-sm'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-              >
-                {cat.name}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* Target Gmail Search Bar */}
       <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-2.5">
-          <div className="relative flex-1">
-            <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="email"
               required
               placeholder="請輸入你或朋友的 gmail"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
+              className="w-full pl-10 pr-3 py-2.5 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
               id="public-search-input"
             />
           </div>
@@ -305,11 +284,11 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
           <button
             type="submit"
             disabled={loading || !searchQuery.trim()}
-            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-rose-500 dark:hover:bg-rose-600 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-50"
+            className="px-4 sm:px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-rose-500 dark:hover:bg-rose-600 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50 flex-shrink-0 whitespace-nowrap"
             id="public-search-submit-btn"
           >
-            <Search className="w-4 h-4" />
-            <span>{loading ? '查詢中...' : '查詢公開紀錄'}</span>
+            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>{loading ? '查詢中' : '查詢'}</span>
           </button>
         </form>
 
