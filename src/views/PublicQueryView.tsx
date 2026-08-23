@@ -437,7 +437,7 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
                       </p>
                     )}
 
-                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-relaxed">
                       {entry.note}
                     </p>
                   </div>
@@ -462,30 +462,32 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
               return (
                 <div
                   key={entry.id}
-                  className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-700 shadow-sm transition-all space-y-2.5"
+                  className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm transition-all space-y-3"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80 pb-2.5">
+                    <div className="flex items-center gap-1.5">
                       <span
-                        className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shadow-sm"
-                        style={{ backgroundColor: `${currentCategory.themeColor}20`, color: currentCategory.themeColor }}
+                        className="w-5 h-5 rounded-lg flex items-center justify-center text-[10px]"
+                        style={{ backgroundColor: `${currentCategory.themeColor}15`, color: currentCategory.themeColor }}
                       >
-                        <Icon className="w-3.5 h-3.5" />
+                        <Icon className="w-3 h-3" />
                       </span>
-                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      <span className="text-[11px] sm:text-xs font-normal text-slate-400 dark:text-slate-500">
                         {entry.type} 日誌
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1 text-xs text-slate-400">
-                      <Calendar className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-1 text-[11px] sm:text-xs text-slate-400 dark:text-slate-500 font-normal">
+                      <Calendar className="w-3 h-3" />
                       <span>{dateStr}</span>
                     </div>
                   </div>
 
-                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
-                    {entry.note}
-                  </p>
+                  <div className="pt-0.5">
+                    <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-relaxed tracking-tight whitespace-pre-wrap">
+                      {entry.note}
+                    </p>
+                  </div>
                 </div>
               );
             })}

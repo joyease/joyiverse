@@ -102,18 +102,19 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
 
   // Category counts for Recharts
   const chartData = useMemo(() => {
-    const counts: Record<LogType, number> = {
+    const counts: Record<string, number> = {
       '旅行': 0,
       '運動': 0,
       '美食': 0,
       '閱讀': 0,
-      '寫字': 0,
-      '影片': 0,
+      '創作': 0,
+      '視聽': 0,
     };
 
     filteredLogsByTime.forEach(l => {
-      if (counts[l.type] !== undefined) {
-        counts[l.type] += 1;
+      const normalizedType = l.type === '寫字' ? '創作' : l.type === '影片' ? '視聽' : l.type;
+      if (counts[normalizedType] !== undefined) {
+        counts[normalizedType] += 1;
       }
     });
 
@@ -130,7 +131,10 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   // Filtered logs list for management table
   const displayLogsList = useMemo(() => {
     if (selectedCategoryFilter === 'all') return filteredLogsByTime;
-    return filteredLogsByTime.filter(l => l.type === selectedCategoryFilter);
+    return filteredLogsByTime.filter(l => {
+      const normalizedType = l.type === '寫字' ? '創作' : l.type === '影片' ? '視聽' : l.type;
+      return normalizedType === selectedCategoryFilter;
+    });
   }, [filteredLogsByTime, selectedCategoryFilter]);
 
   // Handle Edit
@@ -377,7 +381,8 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
         ) : (
           <div className="space-y-3">
             {displayLogsList.map((log) => {
-              const meta = CATEGORY_MAP[log.type] || CATEGORY_MAP['旅行'];
+              const displayType = log.type === '寫字' ? '創作' : log.type === '影片' ? '視聽' : log.type;
+              const meta = CATEGORY_MAP[displayType] || CATEGORY_MAP['旅行'];
               const dateStr = new Date(log.createdAt).toLocaleDateString('zh-TW', {
                 year: 'numeric',
                 month: 'short',
@@ -391,19 +396,16 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
                   key={log.id}
                   className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow transition-all space-y-2"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  {/* Card Header: 標籤與操作按鈕 */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
                       <span
                         className="px-2.5 py-0.5 rounded-full text-xs font-bold"
                         style={{ backgroundColor: `${meta.themeColor}18`, color: meta.themeColor }}
                       >
-                        {log.type}
+                        {displayType}
                       </span>
-                      <span className="text-xs text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {dateStr}
-                      </span>
-                      <span className={`text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium ${
                         log.isPublic 
                           ? 'bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400' 
                           : 'bg-slate-100 text-slate-500 dark:bg-slate-800'
@@ -414,22 +416,28 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
                     </div>
 
                     {/* Action Buttons: 編輯備註 & 刪除 */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
                         onClick={() => openEditModal(log)}
-                        className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         title="編輯備註"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setDeletingId(log.id)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                         title="刪除此筆紀錄"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
+                  </div>
+
+                  {/* Date line */}
+                  <div className="text-[11px] sm:text-xs text-slate-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-slate-400" />
+                    <span>{dateStr}</span>
                   </div>
 
                   {log.locationName && (
@@ -444,7 +452,7 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
                     </p>
                   )}
 
-                  <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-relaxed whitespace-pre-wrap">
                     {log.note}
                   </p>
                 </div>

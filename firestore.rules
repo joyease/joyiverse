@@ -1,50 +1,60 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default Deny
+    // 預設拒絕所有未明訂規則的存取
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // Helper functions
+    // 1. 檢查是否已登入
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function isUserEmail(email) {
-      return isSignedIn() && request.auth.token.email == email;
+    // 2. 驗證目前登入的使用者是否為資料擁有者本人
+    function isOwner(email) {
+      return isSignedIn() && (
+        (request.auth.token.email != null && request.auth.token.email == email) ||
+        (request.auth.uid != null && request.auth.uid == email)
+      );
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
+    // 3. 欄位容量限制、型態與格式檢查 (安全防護且支援選填欄位)
     function isValidLog(data) {
-      return data.userId is string && data.userId.size() <= 120
-        && data.type in ['旅行', '運動', '美食', '閱讀', '寫字', '影片']
+      return data.userId is string 
+        && data.userId.size() > 0 
+        && data.userId.size() <= 150
+        && data.type in ['旅行', '運動', '美食', '閱讀', '創作', '視聽', '寫字', '影片']
         && data.categoryGroup in ['outdoor', 'life']
-        && data.note is string && data.note.size() <= 2000
+        && data.note is string 
+        && data.note.size() > 0 
+        && data.note.size() <= 3000
         && data.isPublic is bool
-        && (data.categoryGroup != 'outdoor' || data.lat == null || (data.lat is number && data.lat >= -90.0 && data.lat <= 90.0))
-        && (data.categoryGroup != 'outdoor' || data.lng == null || (data.lng is number && data.lng >= -180.0 && data.lng <= 180.0));
+        && data.createdAt is string && data.createdAt.size() <= 50
+        && data.updatedAt is string && data.updatedAt.size() <= 50;
     }
 
-    // Logs Collection Rules
+    // 日誌與足跡資料庫 (Logs Collection)
     match /logs/{logId} {
-      // Public logs can be queried by Gmail / read; private logs only readable by owner
-      allow get, list: if resource.data.isPublic == true || isUserEmail(resource.data.userId);
+      // 讀取：公開紀錄 (isPublic == true) 允許所有人瀏覽；私有紀錄僅限擁有者本人讀取
+      allow get, list: if resource.data.isPublic == true 
+                       || (isSignedIn() && (
+                            (request.auth.token.email != null && request.auth.token.email == resource.data.userId) ||
+                            (request.auth.uid != null && request.auth.uid == resource.data.userId)
+                          ));
 
-      // Create: only signed-in users where email matches userId
-      allow create: if isUserEmail(request.resource.data.userId) && isValidLog(request.resource.data);
+      // 新增：必須為登入的本人信箱，並通過嚴格的欄位大小與格式檢查
+      allow create: if isOwner(request.resource.data.userId) 
+                    && isValidLog(request.resource.data);
 
-      // Update: only log owner
-      allow update: if isUserEmail(resource.data.userId) 
-                    && isUserEmail(request.resource.data.userId) 
+      // 修改：不可竄改擁有者 (Immutable Ownership) 與建立時間，且通過檢查
+      allow update: if isOwner(resource.data.userId) 
+                    && request.resource.data.userId == resource.data.userId
                     && request.resource.data.createdAt == resource.data.createdAt
                     && isValidLog(request.resource.data);
 
-      // Delete: only log owner
-      allow delete: if isUserEmail(resource.data.userId);
+      // 刪除：僅限資料擁有者本人
+      allow delete: if isOwner(resource.data.userId);
     }
   }
 }

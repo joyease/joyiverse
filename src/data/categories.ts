@@ -57,9 +57,9 @@ export const CATEGORIES: CategoryMeta[] = [
     sampleNote: '讀完《原子習慣》第四章，微小的改變累積起來將產生複利效應。',
   },
   {
-    type: '寫字',
+    type: '創作',
     group: 'life',
-    name: '寫字',
+    name: '創作',
     subtitle: '寫些什麼好修心',
     iconName: 'PenLine',
     themeColor: '#ec4899', // pink-500
@@ -70,9 +70,9 @@ export const CATEGORIES: CategoryMeta[] = [
     sampleNote: '今天完成了重要企劃，感謝身邊夥伴的支持與鼓勵。',
   },
   {
-    type: '影片',
+    type: '視聽',
     group: 'life',
-    name: '影片',
+    name: '視聽',
     subtitle: '觀賞什麼好玩意',
     iconName: 'Film',
     themeColor: '#6366f1', // indigo-500
@@ -84,7 +84,13 @@ export const CATEGORIES: CategoryMeta[] = [
   },
 ];
 
-export const CATEGORY_MAP: Record<LogType, CategoryMeta> = CATEGORIES.reduce(
-  (acc, item) => ({ ...acc, [item.type]: item }),
-  {} as Record<LogType, CategoryMeta>
-);
+export const CATEGORY_MAP: Record<LogType, CategoryMeta> = (() => {
+  const map = CATEGORIES.reduce(
+    (acc, item) => ({ ...acc, [item.type]: item }),
+    {} as Record<LogType, CategoryMeta>
+  );
+  // 相容舊資料之 mapping
+  if (map['創作']) map['寫字'] = map['創作'];
+  if (map['視聽']) map['影片'] = map['視聽'];
+  return map;
+})();

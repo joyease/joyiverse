@@ -1,4 +1,4 @@
-export type LogType = '旅行' | '運動' | '美食' | '閱讀' | '寫字' | '影片';
+export type LogType = '旅行' | '運動' | '美食' | '閱讀' | '創作' | '視聽' | '寫字' | '影片';
 
 export type CategoryGroup = 'outdoor' | 'life';
 

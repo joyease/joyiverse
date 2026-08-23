@@ -198,14 +198,18 @@ export async function fetchPublicCategoryLogs(
 
   const oneMonthAgo = new Date();
   oneMonthAgo.setDate(oneMonthAgo.getDate() - 31);
-  const oneMonthAgoIso = oneMonthAgo.toISOString();
+
+  // 查詢類別別名 (例：查詢「創作」同時相容歷史資料「寫字」；查詢「視聽」同時相容「影片」)
+  const typesToQuery: LogType[] = [categoryType];
+  if (categoryType === '創作') typesToQuery.push('寫字');
+  if (categoryType === '視聽') typesToQuery.push('影片');
 
   if (db) {
     try {
       const q = query(
         collection(db, LOGS_COLLECTION),
         where('userId', '==', normalizedEmail),
-        where('type', '==', categoryType),
+        where('type', 'in', typesToQuery),
         where('isPublic', '==', true),
         limit(50)
       );
@@ -220,7 +224,7 @@ export async function fetchPublicCategoryLogs(
               userId: data.userId,
               userDisplayName: data.userDisplayName,
               userPhotoURL: data.userPhotoURL,
-              type: data.type,
+              type: data.type === '寫字' ? '創作' : data.type === '影片' ? '視聽' : data.type,
               categoryGroup: data.categoryGroup,
               note: data.note,
               lat: data.lat,
@@ -247,9 +251,13 @@ export async function fetchPublicCategoryLogs(
     .filter(
       item =>
         item.userId.toLowerCase() === normalizedEmail &&
-        item.type === categoryType &&
+        typesToQuery.includes(item.type) &&
         item.isPublic &&
         new Date(item.createdAt).getTime() >= oneMonthAgo.getTime()
     )
+    .map(item => ({
+      ...item,
+      type: item.type === '寫字' ? ('創作' as LogType) : item.type === '影片' ? ('視聽' as LogType) : item.type,
+    }))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }

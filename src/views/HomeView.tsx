@@ -67,6 +67,22 @@ const CATEGORY_DEEP_THEMES: Record<LogType, {
     modeLabel: '文字心得日記',
     isMap: false,
   },
+  '創作': {
+    gradient: 'from-rose-950 via-rose-900 to-slate-950',
+    borderColor: 'border-rose-800/60 hover:border-rose-500/80',
+    iconBg: 'bg-rose-500/20 text-rose-300',
+    tagBg: 'bg-rose-500/20 text-rose-200 border-rose-500/40',
+    modeLabel: '文字心得日記',
+    isMap: false,
+  },
+  '視聽': {
+    gradient: 'from-indigo-950 via-indigo-900 to-slate-950',
+    borderColor: 'border-indigo-800/60 hover:border-indigo-500/80',
+    iconBg: 'bg-indigo-500/20 text-indigo-300',
+    tagBg: 'bg-indigo-500/20 text-indigo-200 border-indigo-500/40',
+    modeLabel: '文字心得日記',
+    isMap: false,
+  },
   '寫字': {
     gradient: 'from-rose-950 via-rose-900 to-slate-950',
     borderColor: 'border-rose-800/60 hover:border-rose-500/80',
