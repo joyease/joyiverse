@@ -10,7 +10,8 @@ import {
   RefreshCw, 
   Clock, 
   Navigation,
-  Calendar
+  Calendar,
+  Lock
 } from 'lucide-react';
 import { LogEntry, LogType } from '../types';
 import { CATEGORY_MAP } from '../data/categories';
@@ -21,9 +22,9 @@ type FilterType = 'all' | '旅行' | '運動' | '美食';
 type MapTimeFilter = 'all' | 'month' | 'week' | 'day';
 
 export const PersonalMapView: React.FC = () => {
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   
   // Default to recent 1 month (近30天)
   const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('month');
@@ -244,13 +245,35 @@ export const PersonalMapView: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={loadData}
-            className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+            disabled={!user}
+            className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">重新整理</span>
           </button>
         </div>
       </div>
+
+      {!user && (
+        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <Lock className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-bold">尚未登入個人帳號</p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+                請輸入您的 Email 與密碼登入後，即可瀏覽個人完整的專屬足跡熱力與打卡地圖。
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={openAuthModal}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap cursor-pointer transition-colors shadow-sm self-start sm:self-auto"
+          >
+            立即登入
+          </button>
+        </div>
+      )}
 
       {/* Filter Controls: Time Range & Category */}
       <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -39,16 +39,12 @@ interface PersonalLogsViewProps {
 }
 
 export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast }) => {
-  const { user } = useAuth();
+  const { user, openAuthModal } = useAuth();
   
   // Track active target email (from login or localStorage) in background
   const [activeEmail, setActiveEmail] = useState<string>(() => {
     if (user?.email) return user.email;
-    try {
-      return localStorage.getItem('joyful_last_active_email') || '';
-    } catch (e) {
-      return '';
-    }
+    return '';
   });
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -217,12 +213,34 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
 
         <button
           onClick={() => loadLogs()}
-          className="self-start sm:self-auto p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+          disabled={!user}
+          className="self-start sm:self-auto p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           <span>重新整理</span>
         </button>
       </div>
+
+      {!user && (
+        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <Lock className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="font-bold">尚未登入個人帳號</p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
+                請輸入您的 Email 與密碼登入後，即可檢視並管理您的個人生活統計數據與歷史紀錄。
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={openAuthModal}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap cursor-pointer transition-colors shadow-sm self-start sm:self-auto"
+          >
+            立即登入
+          </button>
+        </div>
+      )}
 
       {/* Time Dimension Switcher Tabs (全部 / 今日 / 週 / 月 / 年) */}
       <div className="p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center gap-1 max-w-lg">

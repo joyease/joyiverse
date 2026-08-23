@@ -29,7 +29,7 @@ interface CheckInViewProps {
 }
 
 export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, showToast }) => {
-  const { user } = useAuth();
+  const { user, openAuthModal, requireAuth } = useAuth();
   const outdoorCategories = CATEGORIES.filter(c => c.group === 'outdoor');
 
   // Form State
@@ -204,7 +204,10 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      requireAuth(() => {});
+      return;
+    }
     if (!note.trim()) {
       showToast('請輸入打卡備註心得', 'error');
       return;
@@ -250,6 +253,22 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
           留下此刻的足跡與心情
         </h1>
       </div>
+
+      {!user && (
+        <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span>目前為訪客模式，打卡儲存時需登入您的 Email 與密碼</span>
+          </div>
+          <button
+            type="button"
+            onClick={openAuthModal}
+            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs cursor-pointer transition-colors"
+          >
+            立即登入
+          </button>
+        </div>
+      )}
 
       {/* Form Container */}
       <form onSubmit={handleSubmit} className="p-5 sm:p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">

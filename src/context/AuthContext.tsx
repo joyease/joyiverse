@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AppUser } from '../types';
 import { 
-  DEFAULT_ALLOWED_EMAILS, 
   AllowedAccount,
   getAuthorizedAccounts, 
   verifyEmailAndPassword 
@@ -22,9 +21,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ACTIVE_USER_KEY = 'joyful_life_current_user_v3';
+const ACTIVE_USER_KEY = 'joyful_life_current_user_v4';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // 預設為未登入狀態 (null)
   const [user, setUser] = useState<AppUser | null>(() => {
     try {
       const saved = localStorage.getItem(ACTIVE_USER_KEY);
@@ -35,13 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {
       // ignore
     }
-    // 預設已登入的管理員帳號
-    return {
-      uid: 'user-' + btoa('hermanntalk@gmail.com').substring(0, 12),
-      email: 'hermanntalk@gmail.com',
-      displayName: 'Hermann',
-      photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=hermanntalk@gmail.com`,
-    };
+    return null;
   });
 
   const [loading, setLoading] = useState<boolean>(true);
