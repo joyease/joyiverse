@@ -1,20 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import L from 'leaflet';
-import 'leaflet.heat';
 import { 
   Map as MapIcon, 
-  Flame, 
   MapPin, 
   Compass, 
   Activity, 
   Utensils, 
-  Layers, 
   Filter, 
   RefreshCw, 
   Clock, 
   Navigation,
-  Sparkles,
-  Info
+  Calendar
 } from 'lucide-react';
 import { LogEntry, LogType } from '../types';
 import { CATEGORY_MAP } from '../data/categories';
@@ -22,22 +18,21 @@ import { fetchUserLogs } from '../services/logService';
 import { useAuth } from '../context/AuthContext';
 
 type FilterType = 'all' | '旅行' | '運動' | '美食';
+type MapTimeFilter = 'all' | 'month' | 'week' | 'day';
 
 export const PersonalMapView: React.FC = () => {
   const { user } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [filterType, setFilterType] = useState<FilterType>('all');
   
-  // Layer toggles
-  const [showMarkers, setShowMarkers] = useState<boolean>(true);
-  const [showHeatmap, setShowHeatmap] = useState<boolean>(true);
+  // Default to recent 1 month (近30天)
+  const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('month');
+  const [filterType, setFilterType] = useState<FilterType>('all');
 
   // Map DOM and instance refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const heatLayerRef = useRef<any>(null);
 
   const loadData = async () => {
     if (!user) return;
@@ -56,12 +51,42 @@ export const PersonalMapView: React.FC = () => {
     loadData();
   }, [user]);
 
-  // Filter logs with valid lat/lng
-  const filteredGeoLogs = logs.filter(item => {
-    if (item.lat == null || item.lng == null) return false;
-    if (filterType === 'all') return item.categoryGroup === 'outdoor';
-    return item.type === filterType;
-  });
+  // Filter logs with valid lat/lng and matching Time + Category filters
+  const filteredGeoLogs = useMemo(() => {
+    const now = new Date();
+    return logs.filter(item => {
+      if (item.lat == null || item.lng == null) return false;
+
+      // 1. Category filter
+      if (filterType === 'all') {
+        if (item.categoryGroup !== 'outdoor') return false;
+      } else {
+        if (item.type !== filterType) return false;
+      }
+
+      // 2. Time filter
+      const logDate = new Date(item.createdAt);
+      if (isNaN(logDate.getTime())) return true;
+
+      if (timeFilter === 'day') {
+        return (
+          logDate.getFullYear() === now.getFullYear() &&
+          logDate.getMonth() === now.getMonth() &&
+          logDate.getDate() === now.getDate()
+        );
+      } else if (timeFilter === 'week') {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return logDate >= oneWeekAgo;
+      } else if (timeFilter === 'month') {
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+        return logDate >= oneMonthAgo;
+      }
+
+      return true; // 'all'
+    });
+  }, [logs, filterType, timeFilter]);
 
   // Initialize Map
   useEffect(() => {
@@ -90,7 +115,7 @@ export const PersonalMapView: React.FC = () => {
 
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // OpenStreetMap Layer (Standard OSM, identical to peak100)
+    // OpenStreetMap Layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
       subdomains: ['a', 'b', 'c'],
@@ -124,95 +149,59 @@ export const PersonalMapView: React.FC = () => {
     };
   }, []); // Boot once
 
-  // Update Layers (Markers & Heatmap) on data/filter/toggle change
+  // Update Markers Layer on filtered logs change
   useEffect(() => {
-    if (!mapInstanceRef.current) return;
+    if (!mapInstanceRef.current || !markersLayerRef.current) return;
     const map = mapInstanceRef.current;
+    markersLayerRef.current.clearLayers();
 
-    // 1. Manage Markers Layer
-    if (markersLayerRef.current) {
-      markersLayerRef.current.clearLayers();
+    filteredGeoLogs.forEach(entry => {
+      if (entry.lat == null || entry.lng == null) return;
+      const meta = CATEGORY_MAP[entry.type] || CATEGORY_MAP['旅行'];
+      const dateStr = new Date(entry.createdAt).toLocaleDateString('zh-TW', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
 
-      if (showMarkers) {
-        filteredGeoLogs.forEach(entry => {
-          if (entry.lat == null || entry.lng == null) return;
-          const meta = CATEGORY_MAP[entry.type] || CATEGORY_MAP['旅行'];
-          const dateStr = new Date(entry.createdAt).toLocaleDateString('zh-TW', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
+      const pinHtml = `
+        <div class="marker-pin" style="background-color: ${meta.themeColor};">
+          <span class="marker-inner-icon">${entry.type === '旅行' ? '🧭' : entry.type === '運動' ? '🏃' : '🍜'}</span>
+        </div>
+      `;
 
-          const pinHtml = `
-            <div class="marker-pin" style="background-color: ${meta.themeColor};">
-              <span class="marker-inner-icon">${entry.type === '旅行' ? '🧭' : entry.type === '運動' ? '🏃' : '🍜'}</span>
-            </div>
-          `;
+      const customIcon = L.divIcon({
+        className: 'custom-user-pin',
+        html: pinHtml,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -28],
+      });
 
-          const customIcon = L.divIcon({
-            className: 'custom-user-pin',
-            html: pinHtml,
-            iconSize: [32, 32],
-            iconAnchor: [16, 32],
-            popupAnchor: [0, -28],
-          });
+      const popupContent = `
+        <div style="font-family: inherit; font-size: 13px; color: #0f172a; max-width: 250px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+            <span style="font-weight: 700; color: ${meta.themeColor}; font-size: 11px; background: ${meta.themeColor}18; padding: 2px 8px; border-radius: 9999px;">
+              ${entry.type}
+            </span>
+            <span style="font-size: 11px; color: #64748b;">${dateStr}</span>
+          </div>
+          ${entry.locationName ? `<div style="font-weight: 600; margin-bottom: 3px; font-size: 13px;">📍 ${entry.locationName}</div>` : ''}
+          <p style="margin: 4px 0 0 0; color: #334155; line-height: 1.4;">${entry.note}</p>
+          <div style="margin-top: 6px; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;">
+            <span>${entry.isPublic ? '🌐 公開' : '🔒 私有'}</span>
+            <span>${entry.lat.toFixed(4)}, ${entry.lng.toFixed(4)}</span>
+          </div>
+        </div>
+      `;
 
-          const popupContent = `
-            <div style="font-family: inherit; font-size: 13px; color: #0f172a; max-width: 250px;">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-                <span style="font-weight: 700; color: ${meta.themeColor}; font-size: 11px; background: ${meta.themeColor}18; padding: 2px 8px; border-radius: 9999px;">
-                  ${entry.type}
-                </span>
-                <span style="font-size: 11px; color: #64748b;">${dateStr}</span>
-              </div>
-              ${entry.locationName ? `<div style="font-weight: 600; margin-bottom: 3px; font-size: 13px;">📍 ${entry.locationName}</div>` : ''}
-              <p style="margin: 4px 0 0 0; color: #334155; line-height: 1.4;">${entry.note}</p>
-              <div style="margin-top: 6px; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between;">
-                <span>${entry.isPublic ? '🌐 公開' : '🔒 私有'}</span>
-                <span>${entry.lat.toFixed(4)}, ${entry.lng.toFixed(4)}</span>
-              </div>
-            </div>
-          `;
+      const marker = L.marker([entry.lat, entry.lng], { icon: customIcon })
+        .bindPopup(popupContent, { className: 'custom-popup' });
 
-          const marker = L.marker([entry.lat, entry.lng], { icon: customIcon })
-            .bindPopup(popupContent, { className: 'custom-popup' });
-
-          markersLayerRef.current?.addLayer(marker);
-        });
-      }
-    }
-
-    // 2. Manage Heatmap Layer
-    if (heatLayerRef.current) {
-      map.removeLayer(heatLayerRef.current);
-      heatLayerRef.current = null;
-    }
-
-    if (showHeatmap && filteredGeoLogs.length > 0) {
-      const heatPoints = filteredGeoLogs.map(item => [item.lat!, item.lng!, 0.8]);
-      try {
-        // Leaflet.heat layer with Blue -> Green -> Yellow -> Red gradient
-        const heat = (L as any).heatLayer(heatPoints, {
-          radius: 30,
-          blur: 20,
-          maxZoom: 16,
-          max: 1.0,
-          gradient: {
-            0.2: '#3b82f6', // blue
-            0.4: '#10b981', // green
-            0.6: '#eab308', // yellow
-            0.8: '#f97316', // orange
-            1.0: '#ef4444'  // red
-          }
-        });
-        heat.addTo(map);
-        heatLayerRef.current = heat;
-      } catch (e) {
-        console.warn("Heatmap layer warning:", e);
-      }
-    }
+      markersLayerRef.current?.addLayer(marker);
+    });
 
     // Adjust view to fit bounds if points exist
     if (filteredGeoLogs.length > 0) {
@@ -223,9 +212,16 @@ export const PersonalMapView: React.FC = () => {
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
       }
     }
-  }, [filteredGeoLogs, showMarkers, showHeatmap]);
+  }, [filteredGeoLogs]);
 
   const recentPoint = filteredGeoLogs[0];
+
+  const timeFilterOptions: { key: MapTimeFilter; label: string }[] = [
+    { key: 'all', label: '全部' },
+    { key: 'month', label: '近30天' },
+    { key: 'week', label: '近7天' },
+    { key: 'day', label: '今天' },
+  ];
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5 animate-in fade-in duration-200">
@@ -234,13 +230,13 @@ export const PersonalMapView: React.FC = () => {
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
             <MapIcon className="w-3.5 h-3.5" />
-            <span>個人專屬足跡與熱力圖</span>
+            <span>個人專屬足跡地圖</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-            我的地理軌跡・熱力分佈
+            我的地理軌跡・打卡點位
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            僅本人可見所有個人打卡點，支援熱力圖視覺化與類別篩選
+            僅本人可見所有個人打卡點，可依時間與類別篩選打卡標記
           </p>
         </div>
 
@@ -256,12 +252,39 @@ export const PersonalMapView: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter & Layer Controls */}
+      {/* Filter Controls: Time Range & Category */}
       <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Category Filters */}
+        {/* 1. Time Range Filters: 全部 / 近30天 / 近7天 / 今天 */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
           <span className="text-xs font-bold text-slate-500 flex items-center gap-1 flex-shrink-0">
-            <Filter className="w-3.5 h-3.5" />
+            <Calendar className="w-3.5 h-3.5 text-sky-500" />
+            <span>時間：</span>
+          </span>
+          <div className="p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center gap-1">
+            {timeFilterOptions.map(opt => {
+              const isSelected = timeFilter === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => setTimeFilter(opt.key)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-sky-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                  id={`map-time-filter-${opt.key}`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2. Category Filters */}
+        <div className="flex items-center gap-2 overflow-x-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-slate-800">
+          <span className="text-xs font-bold text-slate-500 flex items-center gap-1 flex-shrink-0">
+            <Filter className="w-3.5 h-3.5 text-emerald-500" />
             <span>類別：</span>
           </span>
           {(['all', '旅行', '運動', '美食'] as FilterType[]).map((ft) => {
@@ -272,46 +295,15 @@ export const PersonalMapView: React.FC = () => {
                 onClick={() => setFilterType(ft)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                   isSelected
-                    ? 'bg-slate-900 dark:bg-rose-500 text-white shadow-sm'
+                    ? 'bg-slate-900 dark:bg-emerald-600 text-white shadow-sm'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                 }`}
+                id={`map-cat-filter-${ft}`}
               >
                 {ft === 'all' ? '全部戶外' : ft}
               </button>
             );
           })}
-        </div>
-
-        {/* Visual Layer Toggles */}
-        <div className="flex items-center gap-3 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-slate-800">
-          <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
-            <Layers className="w-3.5 h-3.5" />
-            <span>圖層：</span>
-          </span>
-
-          <button
-            onClick={() => setShowMarkers(!showMarkers)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-              showMarkers
-                ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 ring-1 ring-sky-500/30 font-bold'
-                : 'bg-slate-100 text-slate-400 dark:bg-slate-800'
-            }`}
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span>地標標記</span>
-          </button>
-
-          <button
-            onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-              showHeatmap
-                ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 ring-1 ring-rose-500/30 font-bold'
-                : 'bg-slate-100 text-slate-400 dark:bg-slate-800'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5 text-rose-500" />
-            <span>熱力分佈圖</span>
-          </button>
         </div>
       </div>
 
@@ -322,20 +314,19 @@ export const PersonalMapView: React.FC = () => {
         {/* Map Legend Overlay */}
         <div className="absolute bottom-5 left-5 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-lg text-xs space-y-2 max-w-xs">
           <div className="flex items-center justify-between font-bold text-slate-800 dark:text-white">
-            <span>足跡統計</span>
-            <span className="text-[11px] text-slate-500">{filteredGeoLogs.length} 個點位</span>
+            <span className="flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-sky-500" />
+              <span>足跡點位</span>
+            </span>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold">
+              {filteredGeoLogs.length} 個點位
+            </span>
           </div>
 
-          {/* Heatmap color gradient bar */}
-          {showHeatmap && (
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] text-slate-400 font-medium">
-                <span>低頻率 (藍)</span>
-                <span>高密集 (紅)</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gradient-to-r from-blue-500 via-emerald-500 via-yellow-400 to-rose-500" />
-            </div>
-          )}
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+            <Clock className="w-3 h-3 text-slate-400" />
+            <span>目前範圍：{timeFilterOptions.find(o => o.key === timeFilter)?.label}</span>
+          </div>
 
           {recentPoint && (
             <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400">
@@ -353,10 +344,10 @@ export const PersonalMapView: React.FC = () => {
                 <Navigation className="w-6 h-6" />
               </div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                尚未記錄任何 GPS 打卡點
+                在此時間範圍內無打卡點
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                前往「打卡」標籤頁，啟用定位功能即可將旅行、運動與美食足跡記錄至個人熱力地圖中。
+                目前篩選「{timeFilterOptions.find(o => o.key === timeFilter)?.label}」無足跡紀錄，可嘗試切換至「全部」或前往「打卡」標籤頁新增打卡點。
               </p>
             </div>
           </div>
@@ -365,3 +356,4 @@ export const PersonalMapView: React.FC = () => {
     </div>
   );
 };
+
