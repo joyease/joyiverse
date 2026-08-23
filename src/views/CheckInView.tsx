@@ -298,7 +298,7 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
               placeholder="自訂地標名稱 (選填，例如：象山步道、大安森林公園)"
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
-              className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none"
+              className="w-full px-4 py-3 text-sm sm:text-base rounded-2xl border-2 border-dashed border-sky-300/80 dark:border-sky-700/80 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 focus:border-solid outline-none transition-colors"
             />
           </div>
         </div>
