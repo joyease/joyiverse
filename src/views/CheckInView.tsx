@@ -198,19 +198,16 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
   };
 
   return (
-    <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-in fade-in duration-200">
+    <div className="max-w-xl mx-auto px-4 sm:px-6 py-4 space-y-4 animate-in fade-in duration-200">
       {/* Header Banner */}
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 text-xs font-semibold">
           <MapPin className="w-3.5 h-3.5" />
           <span>動態戶外 GPS 打卡</span>
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
           留下此刻的足跡與心情
         </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          紀錄旅行美景、運動熱血與美食探索，自動結合 GPS 經緯度構建個人足跡地圖
-        </p>
       </div>
 
       {/* Form Container */}
