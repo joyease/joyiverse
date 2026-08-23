@@ -214,43 +214,39 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
       </div>
 
       {/* Form Container */}
-      <form onSubmit={handleSubmit} className="p-5 sm:p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
-        {/* 1. Category Selection (Single Choice) */}
-        <div className="space-y-2.5">
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-            1. 選擇打卡類型 (單選)
-          </label>
-          <div className="grid grid-cols-3 gap-2.5">
-            {outdoorCategories.map(cat => {
-              const isSelected = selectedType === cat.type;
-              return (
-                <button
-                  type="button"
-                  key={cat.type}
-                  onClick={() => setSelectedType(cat.type)}
-                  className={`p-3.5 rounded-2xl border transition-all text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                    isSelected
-                      ? 'border-sky-500 bg-sky-50/80 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 shadow-sm ring-2 ring-sky-500/20'
-                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                  id={`checkin-type-${cat.type}`}
-                >
-                  <span className="text-xl">
-                    {cat.type === '旅行' ? '🧭' : cat.type === '運動' ? '🏃' : '🍜'}
-                  </span>
-                  <span className="text-xs font-bold">{cat.name}</span>
-                </button>
-              );
-            })}
-          </div>
+      <form onSubmit={handleSubmit} className="p-5 sm:p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
+        {/* Category Selection (Compact Button Height) */}
+        <div className="grid grid-cols-3 gap-2">
+          {outdoorCategories.map(cat => {
+            const isSelected = selectedType === cat.type;
+            return (
+              <button
+                type="button"
+                key={cat.type}
+                onClick={() => setSelectedType(cat.type)}
+                className={`py-2.5 px-3 rounded-xl border transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm font-bold ${
+                  isSelected
+                    ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 shadow-sm ring-2 ring-sky-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+                id={`checkin-type-${cat.type}`}
+              >
+                <span className="text-base">
+                  {cat.type === '旅行' ? '🧭' : cat.type === '運動' ? '🏃' : '🍜'}
+                </span>
+                <span>{cat.name}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* 2. GPS Location Status & Fallback Info */}
+        {/* GPS Location Status & Fallback Info */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-              2. GPS 定位座標
-            </label>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+              <Navigation className="w-3.5 h-3.5 text-sky-500" />
+              <span>GPS 地理座標</span>
+            </span>
             <button
               type="button"
               onClick={acquireGps}
@@ -263,7 +259,7 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
           </div>
 
           <div
-            className={`p-3.5 rounded-2xl border text-xs flex items-start gap-2.5 ${
+            className={`p-3 rounded-2xl border text-xs flex items-start gap-2.5 ${
               gpsStatus === 'success'
                 ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
                 : gpsStatus === 'failed'
@@ -288,15 +284,9 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
 
           {/* Interactive OpenStreetMap Mini Preview & Picker */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="flex items-center gap-1 font-medium">
-                <MapIcon className="w-3.5 h-3.5 text-sky-500" />
-                <span>OpenStreetMap 地圖座標預覽 (可直接拖曳標記或點擊地圖選點)</span>
-              </span>
-            </div>
             <div 
               ref={miniMapContainerRef}
-              className="w-full h-44 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner z-0 relative"
+              className="w-full h-36 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-inner z-0 relative"
               id="checkin-mini-map"
             />
           </div>
@@ -308,23 +298,20 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
               placeholder="自訂地標名稱 (選填，例如：象山步道、大安森林公園)"
               value={locationName}
               onChange={(e) => setLocationName(e.target.value)}
-              className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none"
+              className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none"
             />
           </div>
         </div>
 
-        {/* 3. Note Input */}
-        <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-            3. 備註與心得紀錄 *
-          </label>
+        {/* Note Input (Larger text and taller area) */}
+        <div className="space-y-1.5">
           <textarea
             required
-            rows={4}
-            placeholder={`寫下你在這段${selectedType}中的所見所聞、心情或體驗...`}
+            rows={6}
+            placeholder={`在此寫下你在這段「${selectedType}」中的所見所聞、心情或體驗...`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full p-3.5 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none resize-none leading-relaxed"
+            className="w-full p-4 text-sm sm:text-base md:text-lg rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none resize-none leading-relaxed min-h-[150px]"
             id="checkin-note-input"
           />
           <div className="flex justify-between text-[11px] text-slate-400">
@@ -333,7 +320,7 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
           </div>
         </div>
 
-        {/* 4. Public Option Checkbox */}
+        {/* Public Option Checkbox */}
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className={`p-2 rounded-xl ${isPublic ? 'bg-sky-100 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400' : 'bg-slate-200 text-slate-500'}`}>

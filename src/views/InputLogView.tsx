@@ -124,39 +124,34 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
       </div>
 
       {/* Form Container */}
-      <form onSubmit={handleSubmit} className="p-5 sm:p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
-        {/* 1. Category Selection */}
-        <div className="space-y-2.5">
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-            1. 選擇紀錄類型 (單選)
-          </label>
-          <div className="grid grid-cols-3 gap-2.5">
-            {lifeCategories.map(cat => {
-              const isSelected = selectedType === cat.type;
-              return (
-                <button
-                  type="button"
-                  key={cat.type}
-                  onClick={() => setSelectedType(cat.type)}
-                  className={`p-3.5 rounded-2xl border transition-all text-center flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
-                    isSelected
-                      ? 'border-violet-500 bg-violet-50/80 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 shadow-sm ring-2 ring-violet-500/20'
-                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                  id={`input-type-${cat.type}`}
-                >
-                  <span className="text-xl">
-                    {cat.type === '閱讀' ? '📖' : (cat.type === '創作' || cat.type === '寫字') ? '✍️' : '🎬'}
-                  </span>
-                  <span className="text-xs font-bold">{cat.name}</span>
-                </button>
-              );
-            })}
-          </div>
+      <form onSubmit={handleSubmit} className="p-5 sm:p-7 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
+        {/* Category Selection (Compact Button Height) */}
+        <div className="grid grid-cols-3 gap-2">
+          {lifeCategories.map(cat => {
+            const isSelected = selectedType === cat.type;
+            return (
+              <button
+                type="button"
+                key={cat.type}
+                onClick={() => setSelectedType(cat.type)}
+                className={`py-2.5 px-3 rounded-xl border transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer text-xs sm:text-sm font-bold ${
+                  isSelected
+                    ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 shadow-sm ring-2 ring-violet-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+                id={`input-type-${cat.type}`}
+              >
+                <span className="text-base">
+                  {cat.type === '閱讀' ? '📖' : (cat.type === '創作' || cat.type === '寫字') ? '✍️' : '🎬'}
+                </span>
+                <span>{cat.name}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Timestamp Info */}
-        <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+        <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
           <Clock className="w-4 h-4 text-violet-500 flex-shrink-0" />
           <span>紀錄時間：</span>
           <span className="font-semibold text-slate-800 dark:text-slate-200">{currentDateTimeStr}</span>
@@ -184,18 +179,15 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
           </div>
         )}
 
-        {/* 2. Text Input */}
-        <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-            2. 隨筆心得與筆記內文 *
-          </label>
+        {/* Text Input (Larger text and taller area) */}
+        <div className="space-y-1.5">
           <textarea
             required
-            rows={7}
-            placeholder={`在此輸入你的${selectedType}心得、摘錄佳句或心情感觸...`}
+            rows={8}
+            placeholder={`在此輸入你的「${selectedType}」心得、摘錄佳句或心情感觸...`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full p-4 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none resize-none leading-relaxed"
+            className="w-full p-4 text-sm sm:text-base md:text-lg rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none resize-none leading-relaxed min-h-[180px]"
             id="input-note-textarea"
           />
           <div className="flex justify-between text-[11px] text-slate-400">
@@ -204,7 +196,7 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
           </div>
         </div>
 
-        {/* 3. Public Option Checkbox */}
+        {/* Public Option Checkbox */}
         <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className={`p-2 rounded-xl ${isPublic ? 'bg-violet-100 text-violet-600 dark:bg-violet-950/60 dark:text-violet-400' : 'bg-slate-200 text-slate-500'}`}>
