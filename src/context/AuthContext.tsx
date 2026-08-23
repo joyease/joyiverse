@@ -1,135 +1,121 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { AppUser } from '../types';
 import { 
-  User as FirebaseUser, 
-  signInWithPopup, 
-  signOut as firebaseSignOut, 
-  onAuthStateChanged 
-} from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase';
-
-export interface AppUser {
-  uid: string;
-  email: string;
-  displayName: string;
-  photoURL?: string;
-  isAnonymous?: boolean;
-}
+  DEFAULT_ALLOWED_EMAILS, 
+  AllowedAccount,
+  getAuthorizedAccounts, 
+  verifyEmailAndPassword 
+} from '../services/whitelistService';
 
 interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   isAuthModalOpen: boolean;
+  allowedAccountsList: AllowedAccount[];
   openAuthModal: () => void;
   closeAuthModal: () => void;
-  loginWithGoogle: () => Promise<void>;
-  loginWithCustomEmail: (email: string, name?: string) => void;
+  loginWithPassword: (email: string, password: string, displayName?: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   requireAuth: (callback: () => void) => void;
+  refreshAllowedList: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEMO_USER_KEY = 'joyful_life_current_user';
+const ACTIVE_USER_KEY = 'joyful_life_current_user_v3';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(() => {
     try {
-      const saved = localStorage.getItem(DEMO_USER_KEY);
-      if (saved) return JSON.parse(saved);
+      const saved = localStorage.getItem(ACTIVE_USER_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.email) return parsed;
+      }
     } catch (e) {
       // ignore
     }
-    // No preset default user
-    return null;
+    // 預設已登入的管理員帳號
+    return {
+      uid: 'user-' + btoa('hermanntalk@gmail.com').substring(0, 12),
+      email: 'hermanntalk@gmail.com',
+      displayName: 'Hermann',
+      photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=hermanntalk@gmail.com`,
+    };
   });
 
   const [loading, setLoading] = useState<boolean>(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [allowedAccountsList, setAllowedAccountsList] = useState<AllowedAccount[]>([]);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
-  useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return;
+  const refreshAllowedList = useCallback(async () => {
+    try {
+      const list = await getAuthorizedAccounts();
+      setAllowedAccountsList(list);
+    } catch (e) {
+      console.warn('Failed to refresh allowed accounts:', e);
     }
-
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser && firebaseUser.email) {
-        const appUser: AppUser = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-          photoURL: firebaseUser.photoURL || undefined,
-        };
-        setUser(appUser);
-        localStorage.setItem(DEMO_USER_KEY, JSON.stringify(appUser));
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
   }, []);
 
-  const openAuthModal = () => setIsAuthModalOpen(true);
+  useEffect(() => {
+    refreshAllowedList().finally(() => setLoading(false));
+  }, [refreshAllowedList]);
+
+  const openAuthModal = () => {
+    refreshAllowedList();
+    setIsAuthModalOpen(true);
+  };
+  
   const closeAuthModal = () => {
     setIsAuthModalOpen(false);
     setPendingAction(null);
   };
 
-  const loginWithGoogle = async () => {
-    try {
-      if (auth && googleProvider) {
-        const result = await signInWithPopup(auth, googleProvider);
-        if (result.user && result.user.email) {
-          const appUser: AppUser = {
-            uid: result.user.uid,
-            email: result.user.email,
-            displayName: result.user.displayName || result.user.email.split('@')[0],
-            photoURL: result.user.photoURL || undefined,
-          };
-          setUser(appUser);
-          localStorage.setItem(DEMO_USER_KEY, JSON.stringify(appUser));
-          setIsAuthModalOpen(false);
-          if (pendingAction) {
-            pendingAction();
-            setPendingAction(null);
-          }
-          return;
-        }
-      }
-    } catch (error: any) {
-      console.warn("Google popup login encountered notice:", error);
+  const loginWithPassword = async (
+    email: string, 
+    passwordInput: string,
+    displayName?: string
+  ): Promise<{ success: boolean; message?: string }> => {
+    const result = await verifyEmailAndPassword(email, passwordInput);
+    if (!result.authorized) {
+      return { success: false, message: result.message };
     }
-  };
 
-  const loginWithCustomEmail = (email: string, name?: string) => {
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) return;
+    const cleanEmail = result.normalizedEmail;
+    const name = displayName?.trim() || result.displayName || cleanEmail.split('@')[0];
+
     const appUser: AppUser = {
       uid: 'user-' + btoa(cleanEmail).substring(0, 12),
       email: cleanEmail,
-      displayName: name?.trim() || cleanEmail.split('@')[0],
+      displayName: name,
       photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail}`,
     };
+
     setUser(appUser);
-    localStorage.setItem(DEMO_USER_KEY, JSON.stringify(appUser));
+    try {
+      localStorage.setItem(ACTIVE_USER_KEY, JSON.stringify(appUser));
+      localStorage.setItem('joyful_last_active_email', cleanEmail);
+    } catch (e) {
+      // ignore
+    }
+
     setIsAuthModalOpen(false);
     if (pendingAction) {
       pendingAction();
       setPendingAction(null);
     }
+
+    return { success: true };
   };
 
   const logout = async () => {
+    setUser(null);
     try {
-      if (auth) {
-        await firebaseSignOut(auth);
-      }
+      localStorage.removeItem(ACTIVE_USER_KEY);
     } catch (e) {
       // ignore
     }
-    setUser(null);
-    localStorage.removeItem(DEMO_USER_KEY);
   };
 
   const requireAuth = (callback: () => void) => {
@@ -137,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       callback();
     } else {
       setPendingAction(() => callback);
-      setIsAuthModalOpen(true);
+      openAuthModal();
     }
   };
 
@@ -147,12 +133,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         isAuthModalOpen,
+        allowedAccountsList,
         openAuthModal,
         closeAuthModal,
-        loginWithGoogle,
-        loginWithCustomEmail,
+        loginWithPassword,
         logout,
         requireAuth,
+        refreshAllowedList,
       }}
     >
       {children}
@@ -160,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');

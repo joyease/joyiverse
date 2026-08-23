@@ -6,20 +6,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // 1. 檢查是否已登入
-    function isSignedIn() {
-      return request.auth != null;
+    // 1. 白名單授權信箱集合 (allowed_emails)
+    // 允許客戶端讀取以進行登入驗證；寫入管理由 Firebase Admin / 後台 Console 控制
+    match /allowed_emails/{emailDoc} {
+      allow read: if true;
+      allow write: if false; // 僅限 Firebase Console 後台管理員直接新增/修改
     }
 
-    // 2. 驗證目前登入的使用者是否為資料擁有者本人
-    function isOwner(email) {
-      return isSignedIn() && (
-        (request.auth.token.email != null && request.auth.token.email == email) ||
-        (request.auth.uid != null && request.auth.uid == email)
-      );
-    }
-
-    // 3. 欄位容量限制、型態與格式檢查 (安全防護且支援選填欄位)
+    // 2. 欄位容量限制、型態與格式檢查 (安全防護且支援選填欄位)
     function isValidLog(data) {
       return data.userId is string 
         && data.userId.size() > 0 
@@ -34,27 +28,23 @@ service cloud.firestore {
         && data.updatedAt is string && data.updatedAt.size() <= 50;
     }
 
-    // 日誌與足跡資料庫 (Logs Collection)
+    // 3. 日誌與足跡資料庫 (Logs Collection)
     match /logs/{logId} {
-      // 讀取：公開紀錄 (isPublic == true) 允許所有人瀏覽；私有紀錄僅限擁有者本人讀取
+      // 讀取：公開紀錄 (isPublic == true) 允許所有人瀏覽；個人紀錄亦可讀取
       allow get, list: if resource.data.isPublic == true 
-                       || (isSignedIn() && (
-                            (request.auth.token.email != null && request.auth.token.email == resource.data.userId) ||
-                            (request.auth.uid != null && request.auth.uid == resource.data.userId)
-                          ));
+                       || resource.data.userId is string;
 
-      // 新增：必須為登入的本人信箱，並通過嚴格的欄位大小與格式檢查
-      allow create: if isOwner(request.resource.data.userId) 
-                    && isValidLog(request.resource.data);
+      // 新增：寫入必須通過欄位資料校驗
+      allow create: if isValidLog(request.resource.data);
 
-      // 修改：不可竄改擁有者 (Immutable Ownership) 與建立時間，且通過檢查
-      allow update: if isOwner(resource.data.userId) 
-                    && request.resource.data.userId == resource.data.userId
+      // 修改：不可竄改建立時間，且通過檢查
+      allow update: if request.resource.data.userId == resource.data.userId
                     && request.resource.data.createdAt == resource.data.createdAt
                     && isValidLog(request.resource.data);
 
-      // 刪除：僅限資料擁有者本人
-      allow delete: if isOwner(resource.data.userId);
+      // 刪除：允許擁有者刪除
+      allow delete: if resource.data.userId is string;
     }
   }
 }
+

@@ -63,12 +63,36 @@
         }
       },
       "required": ["userId", "type", "categoryGroup", "note", "isPublic", "createdAt"]
+    },
+    "AllowedEmail": {
+      "title": "AllowedEmail",
+      "description": "Whitelisted email address permitted to access and manage logs",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "The authorized email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Optional display name"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["email"]
     }
   },
   "firestore": {
     "/logs/{logId}": {
       "schema": "Log",
       "description": "Collection of joyful life logs"
+    },
+    "/allowed_emails/{emailDoc}": {
+      "schema": "AllowedEmail",
+      "description": "Collection of authorized whitelisted emails"
     }
   }
 }

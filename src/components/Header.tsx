@@ -123,25 +123,26 @@ export const Header: React.FC<HeaderProps> = ({ onNavigateHome }) => {
                     <div className="flex items-center justify-between p-2 rounded-xl bg-slate-800/70 border border-slate-750">
                       <span className="flex items-center gap-1.5 text-slate-200">
                         <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                        身分驗證
+                        授權身分
                       </span>
                       <span className="px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 text-[10px] font-medium">
-                        Google Gmail 已驗證
+                        白名單授權使用
                       </span>
                     </div>
 
-                    <div className="p-2 rounded-xl bg-slate-800/70 border border-slate-750">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-200">
-                          <Globe className="w-4 h-4 text-sky-400" />
-                          公開查詢狀態
-                        </span>
-                        <span className="text-[11px] text-slate-400">預設公開</span>
-                      </div>
-                      <p className="text-[11px] text-slate-400 mt-1">
-                        他人可於 6 大公開頁輸入您的 Gmail 瀏覽近一個月公開紀錄
-                      </p>
-                    </div>
+                    <button
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        openAuthModal();
+                      }}
+                      className="w-full flex items-center justify-between p-2 rounded-xl bg-slate-800/50 hover:bg-slate-750 border border-slate-750 text-slate-200 transition-colors cursor-pointer"
+                    >
+                      <span className="flex items-center gap-1.5 text-[11px]">
+                        <Mail className="w-3.5 h-3.5 text-sky-400" />
+                        切換授權帳號
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                    </button>
                   </div>
 
                   <div className="pt-2 border-t border-slate-800 space-y-1">
