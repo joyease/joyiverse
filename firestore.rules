@@ -30,9 +30,8 @@ service cloud.firestore {
 
     // 3. 日誌與足跡資料庫 (Logs Collection)
     match /logs/{logId} {
-      // 讀取：公開紀錄 (isPublic == true) 允許所有人瀏覽；個人紀錄亦可讀取
-      allow get, list: if resource.data.isPublic == true 
-                       || resource.data.userId is string;
+      // 讀取：公開紀錄與生活足跡開放讀取與個人統計
+      allow get, list: if true;
 
       // 新增：寫入必須通過欄位資料校驗
       allow create: if isValidLog(request.resource.data);

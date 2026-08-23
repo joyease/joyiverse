@@ -27,7 +27,8 @@ import {
   X, 
   MapPin, 
   AlertTriangle,
-  RefreshCw
+  Search,
+  User
 } from 'lucide-react';
 import { LogEntry, LogType, TimeRangeFilter } from '../types';
 import { CATEGORIES, CATEGORY_MAP } from '../data/categories';
@@ -41,14 +42,10 @@ interface PersonalLogsViewProps {
 export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast }) => {
   const { user, openAuthModal } = useAuth();
   
-  // Track active target email (from login or localStorage) in background
-  const [activeEmail, setActiveEmail] = useState<string>(() => {
-    if (user?.email) return user.email;
-    return '';
-  });
-
+  const [searchQuery, setSearchQuery] = useState<string>(user?.email || '');
+  const [targetEmail, setTargetEmail] = useState<string>(user?.email || '');
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [timeFilter, setTimeFilter] = useState<TimeRangeFilter>('week');
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
@@ -62,9 +59,14 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   // Delete Confirm State
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const loadLogs = async (targetEmailToFetch?: string) => {
+  const loadLogs = async (emailToFetch?: string) => {
+    const target = (emailToFetch !== undefined ? emailToFetch : targetEmail).trim().toLowerCase();
+    if (!target) {
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const target = (targetEmailToFetch !== undefined ? targetEmailToFetch : (user?.email || activeEmail)).trim().toLowerCase();
     try {
       const data = await fetchUserLogs(target);
       setLogs(data);
@@ -77,18 +79,20 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
 
   useEffect(() => {
     if (user?.email) {
-      setActiveEmail(user.email);
+      setSearchQuery(user.email);
+      setTargetEmail(user.email);
       loadLogs(user.email);
-    } else {
-      const cached = localStorage.getItem('joyful_last_active_email') || '';
-      if (cached) {
-        setActiveEmail(cached);
-        loadLogs(cached);
-      } else {
-        loadLogs('');
-      }
+    } else if (targetEmail) {
+      loadLogs(targetEmail);
     }
   }, [user]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = searchQuery.trim();
+    setTargetEmail(clean);
+    loadLogs(clean);
+  };
 
   // Filter logs according to TimeRange (All, Day, Week, Month, Year)
   const filteredLogsByTime = useMemo(() => {
@@ -200,29 +204,45 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-in fade-in duration-200">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-xs font-semibold">
-            <BookMarked className="w-3.5 h-3.5" />
-            <span>個人日誌管理與統計</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-            生活數據統計・管理清單
-          </h1>
+      <div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-xs font-semibold">
+          <BookMarked className="w-3.5 h-3.5" />
+          <span>個人日誌管理與統計</span>
         </div>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+          六大幸福項目
+        </h1>
+      </div>
 
-        <button
-          onClick={() => loadLogs()}
-          disabled={!user}
-          className="self-start sm:self-auto p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>重新整理</span>
-        </button>
+      {/* Target Gmail Search Bar (Compact Height) */}
+      <div className="p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="email"
+              placeholder="請輸入欲查詢的 Gmail (例如 hermannhuang@gmail.com)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none"
+              id="personal-logs-search-input"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !searchQuery.trim()}
+            className="px-3.5 sm:px-4 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 flex-shrink-0 whitespace-nowrap"
+            id="personal-logs-search-submit-btn"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span>{loading ? '查詢中' : '查詢'}</span>
+          </button>
+        </form>
       </div>
 
       {!user && (
-        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2.5">
             <Lock className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <div>
@@ -235,7 +255,7 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
           <button
             type="button"
             onClick={openAuthModal}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap cursor-pointer transition-colors shadow-sm self-start sm:self-auto"
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap cursor-pointer transition-colors shadow-xs self-start sm:self-auto"
           >
             立即登入
           </button>
@@ -272,16 +292,11 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
       </div>
 
       {/* Statistics Visualization Chart Card */}
-      <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-slate-900 dark:text-white">
-              6 大幸福項目總覽
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-xs font-bold">
-              區間累計 {totalPeriodCount} 筆
-            </span>
-          </div>
+      <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <span className="px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 text-xs font-bold">
+            區間累計 {totalPeriodCount} 筆
+          </span>
 
           {/* Chart Type Toggle */}
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">

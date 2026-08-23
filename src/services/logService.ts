@@ -150,18 +150,11 @@ export async function removeLog(logId: string): Promise<void> {
  */
 export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
   const normalizedEmail = (userEmail || '').trim().toLowerCase();
-  const localList = getLocalLogs();
-
   if (!normalizedEmail) {
-    // If not logged in yet, return all local logs sorted
-    return [...localList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return [];
   }
 
-  // Get matching local logs
-  const matchingLocal = localList.filter(
-    item => (item.userId || '').toLowerCase() === normalizedEmail
-  );
-
+  const localList = getLocalLogs();
   let cloudResults: LogEntry[] = [];
 
   if (db) {
@@ -175,7 +168,7 @@ export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
       const snapshot = await withTimeout(getDocs(q), 5000);
       if (!snapshot.empty) {
         snapshot.forEach(docSnap => {
-          const data = docSnap.data();
+          const data = docSnap.data() as any;
           cloudResults.push({
             id: docSnap.id,
             userId: data.userId,
@@ -198,6 +191,11 @@ export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
       handleFirestoreError(error, OperationType.LIST, LOGS_COLLECTION);
     }
   }
+
+  // Get matching local logs
+  const matchingLocal = localList.filter(
+    item => (item.userId || '').toLowerCase() === normalizedEmail
+  );
 
   // Merge cloud & local results (avoiding duplicates)
   const cloudIds = new Set(cloudResults.map(r => r.id));

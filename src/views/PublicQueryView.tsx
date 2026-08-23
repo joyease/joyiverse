@@ -270,18 +270,18 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
         </div>
       </div>
 
-      {/* Target Gmail Search Bar */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+      {/* Target Gmail Search Bar (Compact Height) */}
+      <div className="p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
-            <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="email"
               required
               placeholder="請輸入你或朋友的 gmail"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2.5 text-xs sm:text-sm rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
+              className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
               id="public-search-input"
             />
           </div>
@@ -289,30 +289,13 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
           <button
             type="submit"
             disabled={loading || !searchQuery.trim()}
-            className="px-4 sm:px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-rose-500 dark:hover:bg-rose-600 text-white text-xs sm:text-sm font-semibold rounded-2xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-50 flex-shrink-0 whitespace-nowrap"
+            className="px-3.5 sm:px-4 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-rose-500 dark:hover:bg-rose-600 text-white text-xs sm:text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 flex-shrink-0 whitespace-nowrap"
             id="public-search-submit-btn"
           >
-            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <Search className="w-3.5 h-3.5" />
             <span>{loading ? '查詢中' : '查詢'}</span>
           </button>
         </form>
-
-        {user && user.email && (
-          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 pt-1">
-            <span>我的帳號：</span>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery(user.email);
-                setTargetEmail(user.email);
-                performSearch(user.email);
-              }}
-              className="text-indigo-600 dark:text-indigo-400 font-medium underline cursor-pointer"
-            >
-              {user.email} (點擊快速查詢)
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Query Results Presentation */}

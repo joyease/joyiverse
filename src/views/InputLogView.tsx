@@ -101,14 +101,8 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
     }
   };
 
-  const currentDateTimeStr = new Date().toLocaleDateString('zh-TW', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  const now = new Date();
+  const currentDateTimeStr = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
   return (
     <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-in fade-in duration-200">
@@ -121,9 +115,6 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
           文字的溫度・靜心紀錄
         </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          紀錄閱讀思考、心情日記與觀影心得，自動帶入時間印記並妥善保存
-        </p>
       </div>
 
       {!user && (
@@ -170,10 +161,10 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
         </div>
 
         {/* Timestamp Info */}
-        <div className="flex items-center gap-2 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
-          <Clock className="w-4 h-4 text-violet-500 flex-shrink-0" />
-          <span>紀錄時間：</span>
-          <span className="font-semibold text-slate-800 dark:text-slate-200">{currentDateTimeStr}</span>
+        <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+          <Clock className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
+          <span className="text-slate-500 dark:text-slate-400">時間：</span>
+          <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">{currentDateTimeStr}</span>
         </div>
 
         {/* Quick Inspiration Templates */}

@@ -7,11 +7,12 @@ import {
   Activity, 
   Utensils, 
   Filter, 
-  RefreshCw, 
   Clock, 
   Navigation,
   Calendar,
-  Lock
+  Lock,
+  Search,
+  User
 } from 'lucide-react';
 import { LogEntry, LogType } from '../types';
 import { CATEGORY_MAP } from '../data/categories';
@@ -23,11 +24,13 @@ type MapTimeFilter = 'all' | 'month' | 'week' | 'day';
 
 export const PersonalMapView: React.FC = () => {
   const { user, openAuthModal } = useAuth();
+  const [searchQuery, setSearchQuery] = useState<string>(user?.email || '');
+  const [targetEmail, setTargetEmail] = useState<string>(user?.email || '');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   
-  // Default to recent 1 month (近30天)
-  const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('month');
+  // Default to recent 7 days (近7天)
+  const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('week');
   const [filterType, setFilterType] = useState<FilterType>('all');
 
   // Map DOM and instance refs
@@ -35,11 +38,16 @@ export const PersonalMapView: React.FC = () => {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
-  const loadData = async () => {
-    if (!user) return;
+  const loadData = async (emailToFetch?: string) => {
+    const target = (emailToFetch !== undefined ? emailToFetch : targetEmail).trim().toLowerCase();
+    if (!target) {
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const data = await fetchUserLogs(user.email);
+      const data = await fetchUserLogs(target);
       setLogs(data);
     } catch (e) {
       console.error("Error loading user map logs:", e);
@@ -49,8 +57,21 @@ export const PersonalMapView: React.FC = () => {
   };
 
   useEffect(() => {
-    loadData();
+    if (user?.email) {
+      setSearchQuery(user.email);
+      setTargetEmail(user.email);
+      loadData(user.email);
+    } else if (targetEmail) {
+      loadData(targetEmail);
+    }
   }, [user]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = searchQuery.trim();
+    setTargetEmail(clean);
+    loadData(clean);
+  };
 
   // Filter logs with valid lat/lng and matching Time + Category filters
   const filteredGeoLogs = useMemo(() => {
@@ -227,35 +248,48 @@ export const PersonalMapView: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5 animate-in fade-in duration-200">
       {/* Header & Stats bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
-            <MapIcon className="w-3.5 h-3.5" />
-            <span>個人專屬足跡地圖</span>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-            我的地理軌跡・打卡點位
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            僅本人可見所有個人打卡點，可依時間與類別篩選打卡標記
-          </p>
+      <div>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold">
+          <MapIcon className="w-3.5 h-3.5" />
+          <span>個人專屬足跡地圖</span>
         </div>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+          我的地理軌跡・打卡點位
+        </h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          僅本人可見所有個人打卡點，可依時間與類別篩選打卡標記
+        </p>
+      </div>
 
-        {/* Action / Refresh */}
-        <div className="flex items-center gap-2">
+      {/* Target Gmail Search Bar (Compact Height) */}
+      <div className="p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="email"
+              placeholder="請輸入欲查詢足跡的 Gmail (例如 hermannhuang@gmail.com)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+              id="personal-map-search-input"
+            />
+          </div>
+
           <button
-            onClick={loadData}
-            disabled={!user}
-            className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-200 text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
+            type="submit"
+            disabled={loading || !searchQuery.trim()}
+            className="px-3.5 sm:px-4 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 flex-shrink-0 whitespace-nowrap"
+            id="personal-map-search-submit-btn"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">重新整理</span>
+            <Search className="w-3.5 h-3.5" />
+            <span>{loading ? '查詢中' : '查詢'}</span>
           </button>
-        </div>
+        </form>
       </div>
 
       {!user && (
-        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2.5">
             <Lock className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <div>
@@ -268,7 +302,7 @@ export const PersonalMapView: React.FC = () => {
           <button
             type="button"
             onClick={openAuthModal}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap cursor-pointer transition-colors shadow-sm self-start sm:self-auto"
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap cursor-pointer transition-colors shadow-xs self-start sm:self-auto"
           >
             立即登入
           </button>
