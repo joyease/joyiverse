@@ -187,7 +187,7 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
             placeholder={`在此輸入你的「${selectedType}」心得、摘錄佳句或心情感觸...`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full p-4 text-sm sm:text-base md:text-lg rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none resize-none leading-relaxed min-h-[180px]"
+            className="w-full p-4 text-sm sm:text-base md:text-lg rounded-2xl border-2 border-dashed border-violet-300/80 dark:border-violet-700/80 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 focus:border-solid outline-none resize-none leading-relaxed min-h-[180px] transition-colors"
             id="input-note-textarea"
           />
           <div className="flex justify-between text-[11px] text-slate-400">

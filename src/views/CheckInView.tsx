@@ -311,7 +311,7 @@ export const CheckInView: React.FC<CheckInViewProps> = ({ onSuccessNavigate, sho
             placeholder={`在此寫下你在這段「${selectedType}」中的所見所聞、心情或體驗...`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full p-4 text-sm sm:text-base md:text-lg rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none resize-none leading-relaxed min-h-[150px]"
+            className="w-full p-4 text-sm sm:text-base md:text-lg rounded-2xl border-2 border-dashed border-sky-300/80 dark:border-sky-700/80 bg-slate-50/50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 focus:border-solid outline-none resize-none leading-relaxed min-h-[150px] transition-colors"
             id="checkin-note-input"
           />
           <div className="flex justify-between text-[11px] text-slate-400">
