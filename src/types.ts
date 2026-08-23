@@ -20,7 +20,7 @@ export interface LogEntry {
 
 export type NavigationTab = 'home' | 'checkin' | 'map' | 'input' | 'logs';
 
-export type TimeRangeFilter = 'day' | 'week' | 'month' | 'year';
+export type TimeRangeFilter = 'all' | 'day' | 'week' | 'month' | 'year';
 
 export interface CategoryMeta {
   type: LogType;

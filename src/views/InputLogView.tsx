@@ -146,7 +146,7 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
                   id={`input-type-${cat.type}`}
                 >
                   <span className="text-xl">
-                    {cat.type === '閱讀' ? '📖' : cat.type === '寫字' ? '✍️' : '🎬'}
+                    {cat.type === '閱讀' ? '📖' : (cat.type === '創作' || cat.type === '寫字') ? '✍️' : '🎬'}
                   </span>
                   <span className="text-xs font-bold">{cat.name}</span>
                 </button>

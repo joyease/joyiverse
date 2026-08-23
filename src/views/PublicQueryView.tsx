@@ -70,6 +70,11 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
   const performSearch = async (email: string) => {
     const clean = email.trim().toLowerCase();
     if (!clean) return;
+    try {
+      localStorage.setItem('joyful_last_active_email', clean);
+    } catch (e) {
+      // ignore
+    }
     setLoading(true);
     setHasSearched(true);
     try {

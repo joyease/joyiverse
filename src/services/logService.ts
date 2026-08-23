@@ -33,20 +33,25 @@ function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
  */
 export async function createLog(data: Omit<LogEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<LogEntry> {
   const nowIso = new Date().toISOString();
+  const normalizedEmail = (data.userId || '').trim().toLowerCase();
   const newEntry: LogEntry = {
     ...data,
+    userId: normalizedEmail,
     id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
     createdAt: nowIso,
     updatedAt: nowIso,
   };
 
+  // Always sync local store for instant UI feedback
+  const localList = getLocalLogs();
+  saveLocalLogs([newEntry, ...localList]);
+
   // Try writing to Firestore if real db is configured
-  let syncedToCloud = false;
   if (db) {
     try {
       const docRef = await withTimeout(
         addDoc(collection(db, LOGS_COLLECTION), {
-          userId: newEntry.userId,
+          userId: normalizedEmail,
           userDisplayName: newEntry.userDisplayName || '',
           userPhotoURL: newEntry.userPhotoURL || '',
           type: newEntry.type,
@@ -61,8 +66,16 @@ export async function createLog(data: Omit<LogEntry, 'id' | 'createdAt' | 'updat
         }),
         5000
       );
-      newEntry.id = docRef.id;
-      syncedToCloud = true;
+      
+      // Update local entry id if Firestore assigned a real ID
+      if (docRef?.id) {
+        newEntry.id = docRef.id;
+        const currentLocal = getLocalLogs();
+        const updatedLocal = currentLocal.map(item => 
+          item.createdAt === nowIso && item.userId === normalizedEmail ? { ...item, id: docRef.id } : item
+        );
+        saveLocalLogs(updatedLocal);
+      }
       console.log('✅ [Firebase Firestore] 成功寫入雲端資料庫！Document ID:', docRef.id);
     } catch (error: any) {
       console.error('❌ [Firebase Firestore 寫入失敗]:', error?.code, error?.message || error);
@@ -70,9 +83,6 @@ export async function createLog(data: Omit<LogEntry, 'id' | 'createdAt' | 'updat
     }
   }
 
-  // Always sync local store for instant UI feedback
-  const localList = getLocalLogs();
-  saveLocalLogs([newEntry, ...localList]);
   return newEntry;
 }
 
@@ -138,27 +148,40 @@ export async function removeLog(logId: string): Promise<void> {
 /**
  * Get all logs for the current user
  */
-export async function fetchUserLogs(userEmail: string): Promise<LogEntry[]> {
-  if (!userEmail) return [];
+export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
+  const normalizedEmail = (userEmail || '').trim().toLowerCase();
+  const localList = getLocalLogs();
+
+  if (!normalizedEmail) {
+    // If not logged in yet, return all local logs sorted
+    return [...localList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  // Get matching local logs
+  const matchingLocal = localList.filter(
+    item => (item.userId || '').toLowerCase() === normalizedEmail
+  );
+
+  let cloudResults: LogEntry[] = [];
 
   if (db) {
     try {
+      const emailVariants = Array.from(new Set([userEmail, normalizedEmail].filter(Boolean)));
       const q = query(
         collection(db, LOGS_COLLECTION),
-        where('userId', '==', userEmail),
+        where('userId', 'in', emailVariants),
         limit(200)
       );
       const snapshot = await withTimeout(getDocs(q), 5000);
       if (!snapshot.empty) {
-        const results: LogEntry[] = [];
         snapshot.forEach(docSnap => {
           const data = docSnap.data();
-          results.push({
+          cloudResults.push({
             id: docSnap.id,
             userId: data.userId,
             userDisplayName: data.userDisplayName,
             userPhotoURL: data.userPhotoURL,
-            type: data.type,
+            type: data.type === '寫字' ? '創作' : data.type === '影片' ? '視聽' : data.type,
             categoryGroup: data.categoryGroup,
             note: data.note,
             lat: data.lat,
@@ -169,9 +192,6 @@ export async function fetchUserLogs(userEmail: string): Promise<LogEntry[]> {
             updatedAt: data.updatedAt,
           });
         });
-        // Sort descending by createdAt
-        results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        return results;
       }
     } catch (error) {
       console.warn('Firestore fetch user logs warning:', error);
@@ -179,11 +199,20 @@ export async function fetchUserLogs(userEmail: string): Promise<LogEntry[]> {
     }
   }
 
-  // Fallback to local logs matching this user email
-  const localList = getLocalLogs();
-  return localList
-    .filter(item => item.userId.toLowerCase() === userEmail.toLowerCase())
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Merge cloud & local results (avoiding duplicates)
+  const cloudIds = new Set(cloudResults.map(r => r.id));
+  const combined = [...cloudResults];
+  for (const localItem of matchingLocal) {
+    if (!cloudIds.has(localItem.id)) {
+      combined.push({
+        ...localItem,
+        type: localItem.type === '寫字' ? '創作' : localItem.type === '影片' ? '視聽' : localItem.type,
+      });
+    }
+  }
+
+  combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return combined;
 }
 
 /**
