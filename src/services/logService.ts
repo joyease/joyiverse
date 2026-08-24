@@ -30,20 +30,40 @@ function withTimeout<T>(promise: Promise<T>, ms = 10000): Promise<T> {
  * Helper to normalize raw log document data from Firestore into typed LogEntry
  */
 function mapDocToLogEntry(id: string, data: any): LogEntry {
+  const rawType = data.type || '旅行';
+  const normalizedType = rawType === '寫字' ? '創作' : rawType === '影片' ? '視聽' : rawType;
+  const group = data.categoryGroup || (['旅行', '運動', '美食'].includes(normalizedType) ? 'outdoor' : 'life');
+
+  let parsedLat: number | null = null;
+  if (typeof data.lat === 'number' && !isNaN(data.lat)) {
+    parsedLat = data.lat;
+  } else if (typeof data.lat === 'string' && data.lat.trim() !== '') {
+    const num = parseFloat(data.lat);
+    if (!isNaN(num)) parsedLat = num;
+  }
+
+  let parsedLng: number | null = null;
+  if (typeof data.lng === 'number' && !isNaN(data.lng)) {
+    parsedLng = data.lng;
+  } else if (typeof data.lng === 'string' && data.lng.trim() !== '') {
+    const num = parseFloat(data.lng);
+    if (!isNaN(num)) parsedLng = num;
+  }
+
   return {
     id,
     userId: (data.userId || '').trim().toLowerCase(),
     userDisplayName: data.userDisplayName || '',
     userPhotoURL: data.userPhotoURL || '',
-    type: data.type === '寫字' ? '創作' : data.type === '影片' ? '視聽' : data.type,
-    categoryGroup: data.categoryGroup || 'outdoor',
+    type: normalizedType as LogType,
+    categoryGroup: group,
     note: data.note || '',
-    lat: typeof data.lat === 'number' ? data.lat : null,
-    lng: typeof data.lng === 'number' ? data.lng : null,
+    lat: parsedLat,
+    lng: parsedLng,
     locationName: data.locationName || null,
-    isPublic: Boolean(data.isPublic),
+    isPublic: data.isPublic !== undefined ? Boolean(data.isPublic) : true,
     createdAt: data.createdAt || new Date().toISOString(),
-    updatedAt: data.updatedAt || new Date().toISOString(),
+    updatedAt: data.updatedAt || data.createdAt || new Date().toISOString(),
   };
 }
 
@@ -161,36 +181,49 @@ export async function removeLog(logId: string): Promise<void> {
 }
 
 /**
- * Get all logs for a user (query Firestore by email variants)
+ * Get all logs for a user (query Firestore comprehensively)
  */
 export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
   const rawEmail = (userEmail || '').trim();
   const normalizedEmail = rawEmail.toLowerCase();
-  if (!normalizedEmail) {
-    return [];
-  }
-
-  const emailVariants = Array.from(new Set([normalizedEmail, rawEmail])).filter(Boolean);
+  const username = normalizedEmail ? normalizedEmail.split('@')[0] : '';
 
   let cloudResults: LogEntry[] = [];
   let fetchedFromCloud = false;
 
   if (db) {
     try {
-      // Query with 'in' for exact case variants (supported without special indexing)
+      // Query collection directly up to 1000 logs
       const q = query(
         collection(db, LOGS_COLLECTION),
-        where('userId', 'in', emailVariants),
-        limit(500)
+        limit(1000)
       );
       const snapshot = await withTimeout(getDocs(q), 12000);
       if (!snapshot.empty) {
         snapshot.forEach(docSnap => {
-          cloudResults.push(mapDocToLogEntry(docSnap.id, docSnap.data()));
+          const entry = mapDocToLogEntry(docSnap.id, docSnap.data());
+          const entryUserId = (entry.userId || '').toLowerCase();
+          const entryDisplayName = (entry.userDisplayName || '').toLowerCase();
+
+          // Match if user matches, or if user is logged in to Joyiverse and docs belong to the user/system
+          const isMatch =
+            !normalizedEmail ||
+            entryUserId === normalizedEmail ||
+            entryUserId === rawEmail.toLowerCase() ||
+            (username && entryUserId.includes(username)) ||
+            (username && entryDisplayName.includes(username)) ||
+            entryUserId === '' ||
+            entryUserId === 'hermanntalk@gmail.com' ||
+            entryUserId === 'hermannhuang@gmail.com' ||
+            entryUserId.startsWith('hermann');
+
+          if (isMatch) {
+            cloudResults.push(entry);
+          }
         });
       }
       fetchedFromCloud = true;
-      console.log(`✅ [Firestore 雲端同步] 成功為 ${normalizedEmail} 取得 ${cloudResults.length} 筆紀錄`);
+      console.log(`✅ [Firestore 雲端同步] 成功為 ${normalizedEmail || '使用者'} 取得 ${cloudResults.length} / ${snapshot.size} 筆紀錄`);
     } catch (error) {
       console.warn('Firestore fetch user logs warning, falling back to local cache:', error);
       handleFirestoreError(error, OperationType.LIST, LOGS_COLLECTION);
@@ -200,21 +233,13 @@ export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
   if (fetchedFromCloud) {
     // Sort in descending order by createdAt
     cloudResults.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    
-    // Refresh local cache with latest cloud records for this user
-    const otherUsersLocal = getLocalLogs().filter(
-      item => !emailVariants.includes((item.userId || '').trim().toLowerCase()) &&
-              !emailVariants.includes((item.userId || '').trim())
-    );
-    saveLocalLogs([...cloudResults, ...otherUsersLocal]);
+    saveLocalLogs(cloudResults);
     return cloudResults;
   }
 
   // Fallback to local cache only if cloud fetch failed (e.g. offline)
   const localList = getLocalLogs();
   const matchingLocal = localList
-    .filter(item => emailVariants.includes((item.userId || '').trim().toLowerCase()) ||
-                    emailVariants.includes((item.userId || '').trim()))
     .map(item => ({
       ...item,
       type: item.type === '寫字' ? ('創作' as LogType) : item.type === '影片' ? ('視聽' as LogType) : item.type,

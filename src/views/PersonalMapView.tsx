@@ -19,7 +19,7 @@ import { CATEGORY_MAP } from '../data/categories';
 import { fetchUserLogs } from '../services/logService';
 import { useAuth } from '../context/AuthContext';
 
-type FilterType = 'all' | '旅行' | '運動' | '美食';
+type FilterType = 'all' | '旅行' | '運動' | '美食' | '閱讀' | '創作' | '視聽';
 type MapTimeFilter = 'all' | 'month' | 'week' | 'day';
 
 interface PersonalMapViewProps {
@@ -83,15 +83,13 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
 
   // Filter logs with valid lat/lng and matching Time + Category filters
   const filteredGeoLogs = useMemo(() => {
-    const now = new Date();
     return logs.filter(item => {
       if (item.lat == null || item.lng == null) return false;
 
       // 1. Category filter
-      if (filterType === 'all') {
-        if (item.categoryGroup !== 'outdoor') return false;
-      } else {
-        if (item.type !== filterType) return false;
+      if (filterType !== 'all') {
+        const normalizedType = item.type === '寫字' ? '創作' : item.type === '影片' ? '視聽' : item.type;
+        if (normalizedType !== filterType) return false;
       }
 
       // 2. Time filter
@@ -99,18 +97,18 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
       if (isNaN(logDate.getTime())) return true;
 
       if (timeFilter === 'day') {
-        return (
-          logDate.getFullYear() === now.getFullYear() &&
-          logDate.getMonth() === now.getMonth() &&
-          logDate.getDate() === now.getDate()
-        );
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        return logDate >= startOfDay;
       } else if (timeFilter === 'week') {
         const oneWeekAgo = new Date();
+        oneWeekAgo.setHours(0, 0, 0, 0);
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         return logDate >= oneWeekAgo;
       } else if (timeFilter === 'month') {
         const oneMonthAgo = new Date();
-        oneMonthAgo.setDate(oneMonthAgo.getDate() - 30);
+        oneMonthAgo.setHours(0, 0, 0, 0);
+        oneMonthAgo.setDate(oneMonthAgo.getDate() - 31);
         return logDate >= oneMonthAgo;
       }
 
@@ -358,7 +356,7 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
             <Filter className="w-3.5 h-3.5 text-emerald-500" />
             <span>類別：</span>
           </span>
-          {(['all', '旅行', '運動', '美食'] as FilterType[]).map((ft) => {
+          {(['all', '旅行', '運動', '美食', '閱讀', '創作', '視聽'] as FilterType[]).map((ft) => {
             const isSelected = filterType === ft;
             return (
               <button
@@ -371,7 +369,7 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
                 }`}
                 id={`map-cat-filter-${ft}`}
               >
-                {ft === 'all' ? '全部戶外' : ft}
+                {ft === 'all' ? '全部足跡' : ft}
               </button>
             );
           })}

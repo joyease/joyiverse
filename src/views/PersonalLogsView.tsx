@@ -99,21 +99,22 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
       if (isNaN(logDate.getTime())) return true;
 
       if (timeFilter === 'day') {
-        return (
-          logDate.getFullYear() === now.getFullYear() &&
-          logDate.getMonth() === now.getMonth() &&
-          logDate.getDate() === now.getDate()
-        );
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        return logDate >= startOfDay;
       } else if (timeFilter === 'week') {
         const oneWeekAgo = new Date();
+        oneWeekAgo.setHours(0, 0, 0, 0);
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         return logDate >= oneWeekAgo;
       } else if (timeFilter === 'month') {
         const oneMonthAgo = new Date();
+        oneMonthAgo.setHours(0, 0, 0, 0);
         oneMonthAgo.setDate(oneMonthAgo.getDate() - 31);
         return logDate >= oneMonthAgo;
       } else if (timeFilter === 'year') {
         const oneYearAgo = new Date();
+        oneYearAgo.setHours(0, 0, 0, 0);
         oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
         return logDate >= oneYearAgo;
       }
