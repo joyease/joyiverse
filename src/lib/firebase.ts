@@ -233,12 +233,11 @@ export function getLocalLogs(): LogEntry[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_SAMPLE_LOGS));
-      return INITIAL_SAMPLE_LOGS;
+      return [];
     }
     return JSON.parse(raw);
   } catch (e) {
-    return INITIAL_SAMPLE_LOGS;
+    return [];
   }
 }
 

@@ -7,25 +7,44 @@ import {
   getDocs,
   query,
   where,
-  orderBy,
   limit,
-  Timestamp,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, getLocalLogs, saveLocalLogs } from '../lib/firebase';
-import { LogEntry, LogType, CategoryGroup } from '../types';
+import { LogEntry, LogType } from '../types';
 
 const LOGS_COLLECTION = 'logs';
 
 /**
  * Timeout helper to avoid infinite hanging when network/credentials are pending
  */
-function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms = 10000): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('Firestore operation timed out after 5s')), ms)
+      setTimeout(() => reject(new Error(`Firestore operation timed out after ${ms / 1000}s`)), ms)
     )
   ]);
+}
+
+/**
+ * Helper to normalize raw log document data from Firestore into typed LogEntry
+ */
+function mapDocToLogEntry(id: string, data: any): LogEntry {
+  return {
+    id,
+    userId: (data.userId || '').trim().toLowerCase(),
+    userDisplayName: data.userDisplayName || '',
+    userPhotoURL: data.userPhotoURL || '',
+    type: data.type === '寫字' ? '創作' : data.type === '影片' ? '視聽' : data.type,
+    categoryGroup: data.categoryGroup || 'outdoor',
+    note: data.note || '',
+    lat: typeof data.lat === 'number' ? data.lat : null,
+    lng: typeof data.lng === 'number' ? data.lng : null,
+    locationName: data.locationName || null,
+    isPublic: Boolean(data.isPublic),
+    createdAt: data.createdAt || new Date().toISOString(),
+    updatedAt: data.updatedAt || new Date().toISOString(),
+  };
 }
 
 /**
@@ -34,60 +53,54 @@ function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
 export async function createLog(data: Omit<LogEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<LogEntry> {
   const nowIso = new Date().toISOString();
   const normalizedEmail = (data.userId || '').trim().toLowerCase();
-  const newEntry: LogEntry = {
-    ...data,
+  
+  const payloadToFirestore = {
     userId: normalizedEmail,
-    id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    userDisplayName: data.userDisplayName || normalizedEmail.split('@')[0],
+    userPhotoURL: data.userPhotoURL || '',
+    type: data.type,
+    categoryGroup: data.categoryGroup,
+    note: data.note.trim(),
+    lat: typeof data.lat === 'number' ? data.lat : null,
+    lng: typeof data.lng === 'number' ? data.lng : null,
+    locationName: data.locationName || null,
+    isPublic: Boolean(data.isPublic),
     createdAt: nowIso,
     updatedAt: nowIso,
   };
 
-  // Always sync local store for instant UI feedback
-  const localList = getLocalLogs();
-  saveLocalLogs([newEntry, ...localList]);
+  const newEntry: LogEntry = {
+    ...payloadToFirestore,
+    id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+  };
 
-  // Try writing to Firestore if real db is configured
+  // Write to Firestore as single source of truth
   if (db) {
     try {
       const docRef = await withTimeout(
-        addDoc(collection(db, LOGS_COLLECTION), {
-          userId: normalizedEmail,
-          userDisplayName: newEntry.userDisplayName || '',
-          userPhotoURL: newEntry.userPhotoURL || '',
-          type: newEntry.type,
-          categoryGroup: newEntry.categoryGroup,
-          note: newEntry.note,
-          lat: newEntry.lat !== undefined ? newEntry.lat : null,
-          lng: newEntry.lng !== undefined ? newEntry.lng : null,
-          locationName: newEntry.locationName || null,
-          isPublic: newEntry.isPublic,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-        }),
-        5000
+        addDoc(collection(db, LOGS_COLLECTION), payloadToFirestore),
+        10000
       );
       
-      // Update local entry id if Firestore assigned a real ID
       if (docRef?.id) {
         newEntry.id = docRef.id;
-        const currentLocal = getLocalLogs();
-        const updatedLocal = currentLocal.map(item => 
-          item.createdAt === nowIso && item.userId === normalizedEmail ? { ...item, id: docRef.id } : item
-        );
-        saveLocalLogs(updatedLocal);
+        console.log('✅ [Firebase Firestore] 成功寫入雲端資料庫！Document ID:', docRef.id);
       }
-      console.log('✅ [Firebase Firestore] 成功寫入雲端資料庫！Document ID:', docRef.id);
     } catch (error: any) {
       console.error('❌ [Firebase Firestore 寫入失敗]:', error?.code, error?.message || error);
       handleFirestoreError(error, OperationType.CREATE, LOGS_COLLECTION);
     }
   }
 
+  // Update local cache
+  const localList = getLocalLogs();
+  saveLocalLogs([newEntry, ...localList.filter(item => item.id !== newEntry.id)]);
+
   return newEntry;
 }
 
 /**
- * Update an existing log's note & public status
+ * Update an existing log's note & public status in Firestore and local cache
  */
 export async function updateLog(
   logId: string,
@@ -103,15 +116,16 @@ export async function updateLog(
           ...updates,
           updatedAt: nowIso,
         }),
-        5000
+        8000
       );
+      console.log('✅ [Firebase Firestore] 成功更新文件:', logId);
     } catch (error) {
       console.warn('Firestore update warning:', error);
       handleFirestoreError(error, OperationType.UPDATE, `${LOGS_COLLECTION}/${logId}`);
     }
   }
 
-  // Update local
+  // Update local cache
   const localList = getLocalLogs();
   const updated = localList.map(item => {
     if (item.id === logId) {
@@ -127,26 +141,27 @@ export async function updateLog(
 }
 
 /**
- * Delete a log
+ * Delete a log from Firestore and local cache
  */
 export async function removeLog(logId: string): Promise<void> {
   if (db) {
     try {
       const docRef = doc(db, LOGS_COLLECTION, logId);
-      await withTimeout(deleteDoc(docRef), 5000);
+      await withTimeout(deleteDoc(docRef), 8000);
+      console.log('✅ [Firebase Firestore] 成功刪除文件:', logId);
     } catch (error) {
       console.warn('Firestore delete warning:', error);
       handleFirestoreError(error, OperationType.DELETE, `${LOGS_COLLECTION}/${logId}`);
     }
   }
 
-  // Delete local
+  // Delete from local cache
   const localList = getLocalLogs();
   saveLocalLogs(localList.filter(item => item.id !== logId));
 }
 
 /**
- * Get all logs for the current user
+ * Get all logs for a user (query Firestore by normalized email)
  */
 export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
   const normalizedEmail = (userEmail || '').trim().toLowerCase();
@@ -154,67 +169,58 @@ export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
     return [];
   }
 
-  const localList = getLocalLogs();
   let cloudResults: LogEntry[] = [];
+  let fetchedFromCloud = false;
 
   if (db) {
     try {
-      const emailVariants = Array.from(new Set([userEmail, normalizedEmail].filter(Boolean)));
+      // Use simple equality query (single-field query is ALWAYS indexed in Firestore out-of-the-box)
       const q = query(
         collection(db, LOGS_COLLECTION),
-        where('userId', 'in', emailVariants),
-        limit(200)
+        where('userId', '==', normalizedEmail),
+        limit(300)
       );
-      const snapshot = await withTimeout(getDocs(q), 5000);
+      const snapshot = await withTimeout(getDocs(q), 10000);
       if (!snapshot.empty) {
         snapshot.forEach(docSnap => {
-          const data = docSnap.data() as any;
-          cloudResults.push({
-            id: docSnap.id,
-            userId: data.userId,
-            userDisplayName: data.userDisplayName,
-            userPhotoURL: data.userPhotoURL,
-            type: data.type === '寫字' ? '創作' : data.type === '影片' ? '視聽' : data.type,
-            categoryGroup: data.categoryGroup,
-            note: data.note,
-            lat: data.lat,
-            lng: data.lng,
-            locationName: data.locationName,
-            isPublic: data.isPublic,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-          });
+          cloudResults.push(mapDocToLogEntry(docSnap.id, docSnap.data()));
         });
       }
+      fetchedFromCloud = true;
     } catch (error) {
-      console.warn('Firestore fetch user logs warning:', error);
+      console.warn('Firestore fetch user logs warning, will check local cache:', error);
       handleFirestoreError(error, OperationType.LIST, LOGS_COLLECTION);
     }
   }
 
-  // Get matching local logs
-  const matchingLocal = localList.filter(
-    item => (item.userId || '').toLowerCase() === normalizedEmail
-  );
-
-  // Merge cloud & local results (avoiding duplicates)
-  const cloudIds = new Set(cloudResults.map(r => r.id));
-  const combined = [...cloudResults];
-  for (const localItem of matchingLocal) {
-    if (!cloudIds.has(localItem.id)) {
-      combined.push({
-        ...localItem,
-        type: localItem.type === '寫字' ? '創作' : localItem.type === '影片' ? '視聽' : localItem.type,
-      });
-    }
+  if (fetchedFromCloud) {
+    // Sort in descending order by createdAt
+    cloudResults.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    
+    // Refresh local cache with latest cloud records for this user
+    const otherUsersLocal = getLocalLogs().filter(
+      item => (item.userId || '').toLowerCase() !== normalizedEmail
+    );
+    saveLocalLogs([...cloudResults, ...otherUsersLocal]);
+    return cloudResults;
   }
 
-  combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  return combined;
+  // Fallback to local cache only if cloud fetch failed (e.g. offline)
+  const localList = getLocalLogs();
+  const matchingLocal = localList
+    .filter(item => (item.userId || '').toLowerCase() === normalizedEmail)
+    .map(item => ({
+      ...item,
+      type: item.type === '寫字' ? ('創作' as LogType) : item.type === '影片' ? ('視聽' as LogType) : item.type,
+    }));
+
+  matchingLocal.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return matchingLocal;
 }
 
 /**
- * Public Query: fetch logs by target Gmail, category type, within 1 month, where isPublic == true
+ * Public Query: fetch logs by target Gmail, category type, within 1 month, where isPublic == true.
+ * Uses a single-field Firestore query to guarantee execution without requiring manual Firestore composite indexes.
  */
 export async function fetchPublicCategoryLogs(
   targetGmail: string,
@@ -225,49 +231,41 @@ export async function fetchPublicCategoryLogs(
 
   const oneMonthAgo = new Date();
   oneMonthAgo.setDate(oneMonthAgo.getDate() - 31);
+  const oneMonthAgoMs = oneMonthAgo.getTime();
 
-  // 查詢類別別名 (例：查詢「創作」同時相容歷史資料「寫字」；查詢「視聽」同時相容「影片」)
-  const typesToQuery: LogType[] = [categoryType];
+  // Alias compatibility
+  const typesToQuery: string[] = [categoryType];
   if (categoryType === '創作') typesToQuery.push('寫字');
   if (categoryType === '視聽') typesToQuery.push('影片');
 
   if (db) {
     try {
+      // Query by userId only to avoid composite index requirement
       const q = query(
         collection(db, LOGS_COLLECTION),
         where('userId', '==', normalizedEmail),
-        where('type', 'in', typesToQuery),
-        where('isPublic', '==', true),
-        limit(50)
+        limit(200)
       );
-      const snapshot = await withTimeout(getDocs(q), 5000);
-      if (!snapshot.empty) {
-        const results: LogEntry[] = [];
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          if (new Date(data.createdAt).getTime() >= oneMonthAgo.getTime()) {
-            results.push({
-              id: docSnap.id,
-              userId: data.userId,
-              userDisplayName: data.userDisplayName,
-              userPhotoURL: data.userPhotoURL,
-              type: data.type === '寫字' ? '創作' : data.type === '影片' ? '視聽' : data.type,
-              categoryGroup: data.categoryGroup,
-              note: data.note,
-              lat: data.lat,
-              lng: data.lng,
-              locationName: data.locationName,
-              isPublic: data.isPublic,
-              createdAt: data.createdAt,
-              updatedAt: data.updatedAt,
-            });
-          }
-        });
-        results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        return results;
-      }
+      const snapshot = await withTimeout(getDocs(q), 10000);
+      const results: LogEntry[] = [];
+
+      snapshot.forEach(docSnap => {
+        const item = mapDocToLogEntry(docSnap.id, docSnap.data());
+        const itemTime = new Date(item.createdAt).getTime();
+
+        if (
+          item.isPublic &&
+          typesToQuery.includes(item.type) &&
+          itemTime >= oneMonthAgoMs
+        ) {
+          results.push(item);
+        }
+      });
+
+      results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      return results;
     } catch (error) {
-      console.warn('Firestore public query warning:', error);
+      console.warn('Firestore public category query warning, trying local cache:', error);
       handleFirestoreError(error, OperationType.LIST, LOGS_COLLECTION);
     }
   }
@@ -277,10 +275,10 @@ export async function fetchPublicCategoryLogs(
   return localList
     .filter(
       item =>
-        item.userId.toLowerCase() === normalizedEmail &&
+        (item.userId || '').toLowerCase() === normalizedEmail &&
         typesToQuery.includes(item.type) &&
         item.isPublic &&
-        new Date(item.createdAt).getTime() >= oneMonthAgo.getTime()
+        new Date(item.createdAt).getTime() >= oneMonthAgoMs
     )
     .map(item => ({
       ...item,

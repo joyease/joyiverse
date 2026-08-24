@@ -42,8 +42,6 @@ interface PersonalLogsViewProps {
 export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast }) => {
   const { user, openAuthModal } = useAuth();
   
-  const [searchQuery, setSearchQuery] = useState<string>(user?.email || '');
-  const [targetEmail, setTargetEmail] = useState<string>(user?.email || '');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [timeFilter, setTimeFilter] = useState<TimeRangeFilter>('week');
@@ -60,7 +58,7 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadLogs = async (emailToFetch?: string) => {
-    const target = (emailToFetch !== undefined ? emailToFetch : targetEmail).trim().toLowerCase();
+    const target = (emailToFetch || user?.email || '').trim().toLowerCase();
     if (!target) {
       setLogs([]);
       setLoading(false);
@@ -79,20 +77,11 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
 
   useEffect(() => {
     if (user?.email) {
-      setSearchQuery(user.email);
-      setTargetEmail(user.email);
       loadLogs(user.email);
-    } else if (targetEmail) {
-      loadLogs(targetEmail);
+    } else {
+      setLogs([]);
     }
-  }, [user]);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const clean = searchQuery.trim();
-    setTargetEmail(clean);
-    loadLogs(clean);
-  };
+  }, [user?.email]);
 
   // Filter logs according to TimeRange (All, Day, Week, Month, Year)
   const filteredLogsByTime = useMemo(() => {
@@ -204,63 +193,57 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6 animate-in fade-in duration-200">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-xs font-semibold">
-          <BookMarked className="w-3.5 h-3.5" />
-          <span>個人日誌管理與統計</span>
-        </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-          六大幸福項目
-        </h1>
-      </div>
-
-      {/* Target Gmail Search Bar (Compact Height) */}
-      <div className="p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-          <div className="relative flex-1 min-w-0">
-            <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="email"
-              placeholder="請輸入欲查詢的 Gmail (例如 hermannhuang@gmail.com)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none"
-              id="personal-logs-search-input"
-            />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-100 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 text-xs font-semibold">
+            <BookMarked className="w-3.5 h-3.5" />
+            <span>個人日誌管理與統計</span>
           </div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+            六大幸福項目
+          </h1>
+        </div>
 
-          <button
-            type="submit"
-            disabled={loading || !searchQuery.trim()}
-            className="px-3.5 sm:px-4 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 flex-shrink-0 whitespace-nowrap"
-            id="personal-logs-search-submit-btn"
-          >
-            <Search className="w-3.5 h-3.5" />
-            <span>{loading ? '查詢中' : '查詢'}</span>
-          </button>
-        </form>
+        {user && (
+          <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 shadow-xs">
+            <User className="w-4 h-4 text-violet-500" />
+            <div className="flex flex-col">
+              <span className="font-semibold text-slate-900 dark:text-white">{user.displayName || user.email.split('@')[0]}</span>
+              <span className="text-[11px] text-slate-400">{user.email}</span>
+            </div>
+            <button
+              onClick={() => loadLogs(user.email)}
+              disabled={loading}
+              title="重新同步雲端資料"
+              className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-violet-500' : ''}`} />
+            </button>
+          </div>
+        )}
       </div>
 
-      {!user && (
-        <div className="p-4 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs sm:text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <Lock className="w-5 h-5 text-amber-600 flex-shrink-0" />
-            <div>
-              <p className="font-bold">尚未登入個人帳號</p>
-              <p className="text-xs text-amber-700/80 dark:text-amber-400/80">
-                請輸入您的 Email 與密碼登入後，即可檢視並管理您的個人生活統計數據與歷史紀錄。
-              </p>
-            </div>
+      {!user ? (
+        <div className="p-6 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 flex flex-col items-center text-center gap-4 py-12 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
+            <Lock className="w-7 h-7" />
+          </div>
+          <div className="max-w-md space-y-1.5">
+            <h3 className="font-bold text-lg text-slate-900 dark:text-white">此頁面為個人專屬日誌</h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              請登入您的授權 Gmail 帳號與密碼，系統將直接載入您在雲端 Firestore 的所有個人生活紀錄與統計數據。
+            </p>
           </div>
           <button
             type="button"
             onClick={openAuthModal}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap cursor-pointer transition-colors shadow-xs self-start sm:self-auto"
+            className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-sm shadow-md transition-all cursor-pointer"
           >
-            立即登入
+            立即登入帳號
           </button>
         </div>
-      )}
+      ) : (
+        <>
 
       {/* Time Dimension Switcher Tabs (全部 / 今日 / 週 / 月 / 年) */}
       <div className="p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center gap-1 max-w-lg">
@@ -614,6 +597,8 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
