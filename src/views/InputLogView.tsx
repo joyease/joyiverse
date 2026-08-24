@@ -91,11 +91,12 @@ export const InputLogView: React.FC<InputLogViewProps> = ({ onSuccessNavigate, s
         isPublic,
       });
 
-      showToast(`「${selectedType}」日記儲存成功！`, 'success');
+      showToast(`「${selectedType}」日記已成功儲存至 Firebase！`, 'success');
       setNote('');
-    } catch (e) {
-      console.error(e);
-      showToast('日記儲存時發生錯誤', 'error');
+      onSuccessNavigate('logs');
+    } catch (e: any) {
+      console.error('Save error:', e);
+      showToast(`儲存失敗：${e?.message || '請檢查網路狀態'}`, 'error');
     } finally {
       setSubmitting(false);
     }

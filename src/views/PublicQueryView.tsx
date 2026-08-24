@@ -50,12 +50,12 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
   const Icon = ICON_MAP[currentCategory.iconName] || Compass;
   const isMapMode = currentCategory.group === 'outdoor';
 
-  // State
-  const [targetEmail, setTargetEmail] = useState<string>(user?.email || '');
-  const [searchQuery, setSearchQuery] = useState<string>(user?.email || '');
+  // State: start with empty search query to show all public records for the category by default
+  const [targetEmail, setTargetEmail] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [hasSearched, setHasSearched] = useState<boolean>(true);
 
   // Pagination / Load more for list mode
   const PAGE_SIZE = 5;
@@ -67,13 +67,14 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Perform search
-  const performSearch = async (email: string) => {
-    const clean = email.trim().toLowerCase();
-    if (!clean) return;
-    try {
-      localStorage.setItem('joyful_last_active_email', clean);
-    } catch (e) {
-      // ignore
+  const performSearch = async (term: string) => {
+    const clean = term.trim();
+    if (clean) {
+      try {
+        localStorage.setItem('joyful_last_active_email', clean);
+      } catch (e) {
+        // ignore
+      }
     }
     setLoading(true);
     setHasSearched(true);
@@ -89,18 +90,21 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
     }
   };
 
+  // Auto-search on mount and whenever categoryType changes
   useEffect(() => {
-    if (searchQuery && searchQuery.trim()) {
-      performSearch(searchQuery);
-    }
+    performSearch(searchQuery);
   }, [categoryType]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      setTargetEmail(searchQuery.trim());
-      performSearch(searchQuery.trim());
-    }
+    setTargetEmail(searchQuery.trim());
+    performSearch(searchQuery.trim());
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setTargetEmail('');
+    performSearch('');
   };
 
   // Setup Leaflet Map for outdoor category (Travel, Sport, Food)
@@ -270,30 +274,39 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
         </div>
       </div>
 
-      {/* Target Gmail Search Bar (Compact Height) */}
+      {/* Search Bar */}
       <div className="p-2 sm:p-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
           <div className="relative flex-1 min-w-0">
-            <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
-              type="email"
-              required
-              placeholder="請輸入你或朋友的 gmail"
+              type="text"
+              placeholder="搜尋信箱、姓名、關鍵字（留空即顯示全部）"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
+              className="w-full pl-9 pr-8 py-1.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 outline-none"
               id="public-search-input"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs cursor-pointer"
+                title="清除"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={loading || !searchQuery.trim()}
+            disabled={loading}
             className="px-3.5 sm:px-4 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-rose-500 dark:hover:bg-rose-600 text-white text-xs sm:text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 flex-shrink-0 whitespace-nowrap"
             id="public-search-submit-btn"
           >
             <Search className="w-3.5 h-3.5" />
-            <span>{loading ? '查詢中' : '查詢'}</span>
+            <span>{loading ? '查詢中' : '查詢 / 篩選'}</span>
           </button>
         </form>
       </div>
@@ -301,22 +314,25 @@ export const PublicQueryView: React.FC<PublicQueryViewProps> = ({
       {/* Query Results Presentation */}
       <div className="space-y-4">
         {/* Status Header */}
-        {targetEmail && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-slate-900 dark:text-white">
-                查詢結果
-              </span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                {targetEmail}
-              </span>
-            </div>
-
-            <span className="text-xs text-slate-500">
-              {logs.length > 0 ? `共 ${logs.length} 筆公開紀錄` : ''}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-slate-900 dark:text-white">
+              {targetEmail ? `搜尋：「${targetEmail}」` : '全部公開紀錄'}
             </span>
+            {targetEmail && (
+              <button
+                onClick={handleClearSearch}
+                className="text-xs text-rose-500 hover:underline cursor-pointer"
+              >
+                查看全部
+              </button>
+            )}
           </div>
-        )}
+
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {loading ? '讀取中...' : `共 ${logs.length} 筆紀錄`}
+          </span>
+        </div>
 
         {/* Loading state */}
         {loading && (

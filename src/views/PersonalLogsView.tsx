@@ -45,7 +45,7 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [timeFilter, setTimeFilter] = useState<TimeRangeFilter>('week');
+  const [timeFilter, setTimeFilter] = useState<TimeRangeFilter>('all');
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
@@ -59,14 +59,9 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadLogs = async (emailToFetch?: string, isManualSync = false) => {
-    const target = (emailToFetch || user?.email || '').trim().toLowerCase();
-    if (!target) {
-      setLogs([]);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     try {
+      const target = (emailToFetch || user?.email || '').trim().toLowerCase();
       const data = await fetchUserLogs(target);
       setLogs(data);
       if (isManualSync) {
@@ -83,11 +78,7 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   };
 
   useEffect(() => {
-    if (user?.email) {
-      loadLogs(user.email);
-    } else {
-      setLogs([]);
-    }
+    loadLogs(user?.email);
   }, [user?.email]);
 
   // Filter logs according to TimeRange (All, Day, Week, Month, Year)

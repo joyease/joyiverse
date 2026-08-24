@@ -75,11 +75,42 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 // Firebase Configuration:
-// 1. If VITE_FIREBASE_* env variables are provided (e.g. for GitHub Pages or custom project build), they take highest priority.
-// 2. Otherwise fall back to user's Joyiverse project configuration (joyiverse-c0601).
-const rawApiKey = import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDLRUdJHUZyd1rO0qnN8z0jEQlg86q9QRQ";
-const rawProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || "joyiverse-c0601";
-const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID || undefined;
+// 1. Highest priority: appletConfigJson (firebase-applet-config.json) or VITE_FIREBASE_* env variables.
+// 2. Fallback: joyiverse-c0601 project configuration.
+const rawApiKey =
+  appletConfig.apiKey ||
+  import.meta.env.VITE_FIREBASE_API_KEY ||
+  "AIzaSyDLRUdJHUZyd1rO0qnN8z0jEQlg86q9QRQ";
+
+const rawProjectId =
+  appletConfig.projectId ||
+  import.meta.env.VITE_FIREBASE_PROJECT_ID ||
+  "joyiverse-c0601";
+
+const rawAuthDomain =
+  appletConfig.authDomain ||
+  import.meta.env.VITE_FIREBASE_AUTH_DOMAIN ||
+  `${rawProjectId}.firebaseapp.com`;
+
+const rawStorageBucket =
+  appletConfig.storageBucket ||
+  import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
+  `${rawProjectId}.firebasestorage.app`;
+
+const rawMessagingSenderId =
+  appletConfig.messagingSenderId ||
+  import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID ||
+  "637809504937";
+
+const rawAppId =
+  appletConfig.appId ||
+  import.meta.env.VITE_FIREBASE_APP_ID ||
+  "1:637809504937:web:8484051747b92c08f66fb8";
+
+const firestoreDatabaseId =
+  appletConfig.firestoreDatabaseId ||
+  import.meta.env.VITE_FIREBASE_DATABASE_ID ||
+  undefined;
 
 export const isRealFirebaseConfigured = Boolean(
   rawApiKey &&
@@ -89,11 +120,11 @@ export const isRealFirebaseConfigured = Boolean(
 
 const firebaseConfig = {
   apiKey: rawApiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "joyiverse-c0601.firebaseapp.com",
+  authDomain: rawAuthDomain,
   projectId: rawProjectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "joyiverse-c0601.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "637809504937",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:637809504937:web:8484051747b92c08f66fb8"
+  storageBucket: rawStorageBucket,
+  messagingSenderId: rawMessagingSenderId,
+  appId: rawAppId
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

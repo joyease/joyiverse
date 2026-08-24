@@ -1,12 +1,12 @@
 {
-  "projectId": "symmetric-bonus-nc9s2",
-  "appId": "1:949094700104:web:143771016ac2f0e035b47d",
-  "apiKey": "AIzaSyAdHfR_16idXXPs-kEZ1VS54Vb7faVo77c",
-  "authDomain": "symmetric-bonus-nc9s2.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-joyiverse-df974cea-3195-47a9-b548-6cab6abb620b",
-  "storageBucket": "symmetric-bonus-nc9s2.firebasestorage.app",
-  "messagingSenderId": "949094700104",
+  "projectId": "joyiverse-c0601",
+  "appId": "1:637809504937:web:8484051747b92c08f66fb8",
+  "apiKey": "AIzaSyDLRUdJHUZyd1rO0qnN8z0jEQlg86q9QRQ",
+  "authDomain": "joyiverse-c0601.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "joyiverse-c0601.firebasestorage.app",
+  "messagingSenderId": "637809504937",
   "measurementId": "",
-  "oAuthClientId": "949094700104-ieu724qd6rtpk5mprfbmrgpbetp1nob6.apps.googleusercontent.com",
+  "oAuthClientId": "",
   "recaptchaSiteKey": ""
 }

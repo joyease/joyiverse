@@ -6,7 +6,6 @@ import {
   doc,
   getDocs,
   query,
-  where,
   limit,
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType, getLocalLogs, saveLocalLogs } from '../lib/firebase';
@@ -17,7 +16,7 @@ const LOGS_COLLECTION = 'logs';
 /**
  * Timeout helper to avoid infinite hanging when network/credentials are pending
  */
-function withTimeout<T>(promise: Promise<T>, ms = 10000): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, ms = 12000): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
@@ -27,43 +26,114 @@ function withTimeout<T>(promise: Promise<T>, ms = 10000): Promise<T> {
 }
 
 /**
+ * Parse any date/timestamp into a clean ISO string
+ */
+function parseDateToIso(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  }
+  if (typeof val === 'number') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  }
+  if (val instanceof Date) {
+    return isNaN(val.getTime()) ? new Date().toISOString() : val.toISOString();
+  }
+  // Firestore Timestamp with toDate()
+  if (typeof val.toDate === 'function') {
+    try {
+      const d = val.toDate();
+      return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+    } catch (e) {
+      // ignore
+    }
+  }
+  // Firestore Timestamp with seconds / _seconds
+  if (typeof val.seconds === 'number') {
+    return new Date(val.seconds * 1000).toISOString();
+  }
+  if (typeof val._seconds === 'number') {
+    return new Date(val._seconds * 1000).toISOString();
+  }
+  return new Date().toISOString();
+}
+
+/**
+ * Parse coordinate to number or null
+ */
+function parseCoordinate(val: any): number | null {
+  if (val === null || val === undefined || val === '') return null;
+  if (typeof val === 'number' && !isNaN(val)) return val;
+  if (typeof val === 'string') {
+    const num = parseFloat(val.trim());
+    return isNaN(num) ? null : num;
+  }
+  return null;
+}
+
+/**
+ * Normalize log type name to standard 6 categories
+ */
+function normalizeLogType(raw: any): LogType {
+  const str = String(raw || '').trim();
+  const lower = str.toLowerCase();
+
+  if (str === '寫字' || lower === 'write' || lower === 'writing' || str === '創作' || lower === 'create' || lower === 'art') return '創作';
+  if (str === '影片' || lower === 'video' || lower === 'movie' || str === '視聽' || lower === 'audio' || lower === 'music' || lower === 'media') return '視聽';
+  if (str === '旅行' || lower === 'travel' || lower === 'trip' || lower === 'tour') return '旅行';
+  if (str === '運動' || lower === 'sport' || lower === 'sports' || lower === 'exercise' || lower === 'gym') return '運動';
+  if (str === '美食' || lower === 'food' || lower === 'dining' || lower === 'eat' || lower === 'restaurant') return '美食';
+  if (str === '閱讀' || lower === 'read' || lower === 'reading' || lower === 'book') return '閱讀';
+  
+  if (str === '旅行' || str === '運動' || str === '美食' || str === '閱讀' || str === '創作' || str === '視聽') {
+    return str as LogType;
+  }
+  return '旅行';
+}
+
+/**
  * Helper to normalize raw log document data from Firestore into typed LogEntry
  */
 function mapDocToLogEntry(id: string, data: any): LogEntry {
-  const rawType = data.type || '旅行';
-  const normalizedType = rawType === '寫字' ? '創作' : rawType === '影片' ? '視聽' : rawType;
+  const normalizedType = normalizeLogType(data.type);
   const group = data.categoryGroup || (['旅行', '運動', '美食'].includes(normalizedType) ? 'outdoor' : 'life');
 
-  let parsedLat: number | null = null;
-  if (typeof data.lat === 'number' && !isNaN(data.lat)) {
-    parsedLat = data.lat;
-  } else if (typeof data.lat === 'string' && data.lat.trim() !== '') {
-    const num = parseFloat(data.lat);
-    if (!isNaN(num)) parsedLat = num;
-  }
+  const lat =
+    parseCoordinate(data.lat) ??
+    parseCoordinate(data.latitude) ??
+    parseCoordinate(data.location?.lat) ??
+    parseCoordinate(data.location?.latitude) ??
+    parseCoordinate(data.geo?.lat);
 
-  let parsedLng: number | null = null;
-  if (typeof data.lng === 'number' && !isNaN(data.lng)) {
-    parsedLng = data.lng;
-  } else if (typeof data.lng === 'string' && data.lng.trim() !== '') {
-    const num = parseFloat(data.lng);
-    if (!isNaN(num)) parsedLng = num;
-  }
+  const lng =
+    parseCoordinate(data.lng) ??
+    parseCoordinate(data.longitude) ??
+    parseCoordinate(data.location?.lng) ??
+    parseCoordinate(data.location?.longitude) ??
+    parseCoordinate(data.geo?.lng);
+
+  const createdAt = parseDateToIso(data.createdAt || data.timestamp || data.time || data.created_at);
+  const updatedAt = parseDateToIso(data.updatedAt || data.updated_at || createdAt);
+
+  // If isPublic is undefined or null, default to true
+  const isPublic = data.isPublic !== undefined && data.isPublic !== null ? Boolean(data.isPublic) : true;
 
   return {
     id,
-    userId: (data.userId || '').trim().toLowerCase(),
-    userDisplayName: data.userDisplayName || '',
-    userPhotoURL: data.userPhotoURL || '',
-    type: normalizedType as LogType,
+    userId: (data.userId || data.user_id || data.email || '').trim().toLowerCase(),
+    userDisplayName: data.userDisplayName || data.displayName || data.userName || '',
+    userPhotoURL: data.userPhotoURL || data.photoURL || '',
+    type: normalizedType,
     categoryGroup: group,
-    note: data.note || '',
-    lat: parsedLat,
-    lng: parsedLng,
-    locationName: data.locationName || null,
-    isPublic: data.isPublic !== undefined ? Boolean(data.isPublic) : true,
-    createdAt: data.createdAt || new Date().toISOString(),
-    updatedAt: data.updatedAt || data.createdAt || new Date().toISOString(),
+    note: data.note || data.content || data.title || data.message || '',
+    lat,
+    lng,
+    locationName: data.locationName || data.location_name || data.placeName || data.address || null,
+    isPublic,
+    createdAt,
+    updatedAt,
   };
 }
 
@@ -181,19 +251,15 @@ export async function removeLog(logId: string): Promise<void> {
 }
 
 /**
- * Get all logs for a user (query Firestore comprehensively)
+ * Get all logs for the current user and database
  */
-export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
-  const rawEmail = (userEmail || '').trim();
-  const normalizedEmail = rawEmail.toLowerCase();
-  const username = normalizedEmail ? normalizedEmail.split('@')[0] : '';
-
+export async function fetchUserLogs(_userEmail?: string): Promise<LogEntry[]> {
   let cloudResults: LogEntry[] = [];
   let fetchedFromCloud = false;
 
   if (db) {
     try {
-      // Query collection directly up to 1000 logs
+      // Query collection up to 1000 logs
       const q = query(
         collection(db, LOGS_COLLECTION),
         limit(1000)
@@ -201,29 +267,11 @@ export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
       const snapshot = await withTimeout(getDocs(q), 12000);
       if (!snapshot.empty) {
         snapshot.forEach(docSnap => {
-          const entry = mapDocToLogEntry(docSnap.id, docSnap.data());
-          const entryUserId = (entry.userId || '').toLowerCase();
-          const entryDisplayName = (entry.userDisplayName || '').toLowerCase();
-
-          // Match if user matches, or if user is logged in to Joyiverse and docs belong to the user/system
-          const isMatch =
-            !normalizedEmail ||
-            entryUserId === normalizedEmail ||
-            entryUserId === rawEmail.toLowerCase() ||
-            (username && entryUserId.includes(username)) ||
-            (username && entryDisplayName.includes(username)) ||
-            entryUserId === '' ||
-            entryUserId === 'hermanntalk@gmail.com' ||
-            entryUserId === 'hermannhuang@gmail.com' ||
-            entryUserId.startsWith('hermann');
-
-          if (isMatch) {
-            cloudResults.push(entry);
-          }
+          cloudResults.push(mapDocToLogEntry(docSnap.id, docSnap.data()));
         });
       }
       fetchedFromCloud = true;
-      console.log(`✅ [Firestore 雲端同步] 成功為 ${normalizedEmail || '使用者'} 取得 ${cloudResults.length} / ${snapshot.size} 筆紀錄`);
+      console.log(`✅ [Firestore 雲端同步] 成功自 Firestore 取得 ${cloudResults.length} 筆日誌紀錄`);
     } catch (error) {
       console.warn('Firestore fetch user logs warning, falling back to local cache:', error);
       handleFirestoreError(error, OperationType.LIST, LOGS_COLLECTION);
@@ -240,80 +288,71 @@ export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
   // Fallback to local cache only if cloud fetch failed (e.g. offline)
   const localList = getLocalLogs();
   const matchingLocal = localList
-    .map(item => ({
-      ...item,
-      type: item.type === '寫字' ? ('創作' as LogType) : item.type === '影片' ? ('視聽' as LogType) : item.type,
-    }));
+    .map(item => mapDocToLogEntry(item.id, item));
 
   matchingLocal.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   return matchingLocal;
 }
 
 /**
- * Public Query: fetch logs by target Gmail, category type, within 1 month, where isPublic == true.
- * Uses a single-field Firestore query to guarantee execution without requiring manual Firestore composite indexes.
+ * Public Query: fetch logs by category type and optional target search query.
+ * Can be accessed without login.
  */
 export async function fetchPublicCategoryLogs(
-  targetGmail: string,
-  categoryType: LogType
+  targetSearch?: string,
+  categoryType?: LogType
 ): Promise<LogEntry[]> {
-  const normalizedEmail = targetGmail.trim().toLowerCase();
-  if (!normalizedEmail) return [];
+  const queryTerm = (targetSearch || '').trim().toLowerCase();
+  const normalizedCategory = categoryType ? normalizeLogType(categoryType) : undefined;
 
-  const oneMonthAgo = new Date();
-  oneMonthAgo.setDate(oneMonthAgo.getDate() - 31);
-  const oneMonthAgoMs = oneMonthAgo.getTime();
-
-  // Alias compatibility
-  const typesToQuery: string[] = [categoryType];
-  if (categoryType === '創作') typesToQuery.push('寫字');
-  if (categoryType === '視聽') typesToQuery.push('影片');
+  let allLogs: LogEntry[] = [];
 
   if (db) {
     try {
-      // Query by userId only to avoid composite index requirement
       const q = query(
         collection(db, LOGS_COLLECTION),
-        where('userId', '==', normalizedEmail),
-        limit(200)
+        limit(1000)
       );
-      const snapshot = await withTimeout(getDocs(q), 10000);
-      const results: LogEntry[] = [];
-
-      snapshot.forEach(docSnap => {
-        const item = mapDocToLogEntry(docSnap.id, docSnap.data());
-        const itemTime = new Date(item.createdAt).getTime();
-
-        if (
-          item.isPublic &&
-          typesToQuery.includes(item.type) &&
-          itemTime >= oneMonthAgoMs
-        ) {
-          results.push(item);
-        }
-      });
-
-      results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      return results;
+      const snapshot = await withTimeout(getDocs(q), 12000);
+      if (!snapshot.empty) {
+        snapshot.forEach(docSnap => {
+          allLogs.push(mapDocToLogEntry(docSnap.id, docSnap.data()));
+        });
+      }
     } catch (error) {
       console.warn('Firestore public category query warning, trying local cache:', error);
       handleFirestoreError(error, OperationType.LIST, LOGS_COLLECTION);
     }
   }
 
-  // Fallback local query
-  const localList = getLocalLogs();
-  return localList
-    .filter(
-      item =>
-        (item.userId || '').toLowerCase() === normalizedEmail &&
-        typesToQuery.includes(item.type) &&
-        item.isPublic &&
-        new Date(item.createdAt).getTime() >= oneMonthAgoMs
-    )
-    .map(item => ({
-      ...item,
-      type: item.type === '寫字' ? ('創作' as LogType) : item.type === '影片' ? ('視聽' as LogType) : item.type,
-    }))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  if (allLogs.length === 0) {
+    allLogs = getLocalLogs().map(item => mapDocToLogEntry(item.id, item));
+  }
+
+  // Filter logs
+  const filtered = allLogs.filter(item => {
+    // 1. Category Match
+    if (normalizedCategory && item.type !== normalizedCategory) {
+      return false;
+    }
+
+    // 2. Target Term Filter (if provided by user)
+    if (queryTerm) {
+      const uId = (item.userId || '').toLowerCase();
+      const uName = (item.userDisplayName || '').toLowerCase();
+      const uNote = (item.note || '').toLowerCase();
+      const uLoc = (item.locationName || '').toLowerCase();
+      const matches =
+        uId.includes(queryTerm) ||
+        uName.includes(queryTerm) ||
+        uNote.includes(queryTerm) ||
+        uLoc.includes(queryTerm);
+      if (!matches) return false;
+    }
+
+    return true;
+  });
+
+  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return filtered;
 }

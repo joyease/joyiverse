@@ -32,8 +32,8 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
   const [loading, setLoading] = useState<boolean>(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   
-  // Default to recent 7 days (近7天)
-  const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('week');
+  // Default to all or recent
+  const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('all');
   const [filterType, setFilterType] = useState<FilterType>('all');
 
   // Map DOM and instance refs
@@ -42,15 +42,10 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
   const loadData = async (emailToFetch?: string, isManualSync = false) => {
-    const target = (emailToFetch || user?.email || '').trim().toLowerCase();
-    if (!target) {
-      setLogs([]);
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setSyncFeedback(null);
     try {
+      const target = (emailToFetch || user?.email || '').trim().toLowerCase();
       const data = await fetchUserLogs(target);
       setLogs(data);
       const geoCount = data.filter(d => d.lat != null && d.lng != null).length;
@@ -74,11 +69,7 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
   };
 
   useEffect(() => {
-    if (user?.email) {
-      loadData(user.email);
-    } else {
-      setLogs([]);
-    }
+    loadData(user?.email);
   }, [user?.email]);
 
   // Filter logs with valid lat/lng and matching Time + Category filters
