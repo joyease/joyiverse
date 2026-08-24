@@ -161,34 +161,38 @@ export async function removeLog(logId: string): Promise<void> {
 }
 
 /**
- * Get all logs for a user (query Firestore by normalized email)
+ * Get all logs for a user (query Firestore by email variants)
  */
 export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
-  const normalizedEmail = (userEmail || '').trim().toLowerCase();
+  const rawEmail = (userEmail || '').trim();
+  const normalizedEmail = rawEmail.toLowerCase();
   if (!normalizedEmail) {
     return [];
   }
+
+  const emailVariants = Array.from(new Set([normalizedEmail, rawEmail])).filter(Boolean);
 
   let cloudResults: LogEntry[] = [];
   let fetchedFromCloud = false;
 
   if (db) {
     try {
-      // Use simple equality query (single-field query is ALWAYS indexed in Firestore out-of-the-box)
+      // Query with 'in' for exact case variants (supported without special indexing)
       const q = query(
         collection(db, LOGS_COLLECTION),
-        where('userId', '==', normalizedEmail),
-        limit(300)
+        where('userId', 'in', emailVariants),
+        limit(500)
       );
-      const snapshot = await withTimeout(getDocs(q), 10000);
+      const snapshot = await withTimeout(getDocs(q), 12000);
       if (!snapshot.empty) {
         snapshot.forEach(docSnap => {
           cloudResults.push(mapDocToLogEntry(docSnap.id, docSnap.data()));
         });
       }
       fetchedFromCloud = true;
+      console.log(`✅ [Firestore 雲端同步] 成功為 ${normalizedEmail} 取得 ${cloudResults.length} 筆紀錄`);
     } catch (error) {
-      console.warn('Firestore fetch user logs warning, will check local cache:', error);
+      console.warn('Firestore fetch user logs warning, falling back to local cache:', error);
       handleFirestoreError(error, OperationType.LIST, LOGS_COLLECTION);
     }
   }
@@ -199,7 +203,8 @@ export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
     
     // Refresh local cache with latest cloud records for this user
     const otherUsersLocal = getLocalLogs().filter(
-      item => (item.userId || '').toLowerCase() !== normalizedEmail
+      item => !emailVariants.includes((item.userId || '').trim().toLowerCase()) &&
+              !emailVariants.includes((item.userId || '').trim())
     );
     saveLocalLogs([...cloudResults, ...otherUsersLocal]);
     return cloudResults;
@@ -208,7 +213,8 @@ export async function fetchUserLogs(userEmail?: string): Promise<LogEntry[]> {
   // Fallback to local cache only if cloud fetch failed (e.g. offline)
   const localList = getLocalLogs();
   const matchingLocal = localList
-    .filter(item => (item.userId || '').toLowerCase() === normalizedEmail)
+    .filter(item => emailVariants.includes((item.userId || '').trim().toLowerCase()) ||
+                    emailVariants.includes((item.userId || '').trim()))
     .map(item => ({
       ...item,
       type: item.type === '寫字' ? ('創作' as LogType) : item.type === '影片' ? ('視聽' as LogType) : item.type,

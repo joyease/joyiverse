@@ -27,8 +27,9 @@ import {
   X, 
   MapPin, 
   AlertTriangle,
-  Search,
-  User
+  User,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import { LogEntry, LogType, TimeRangeFilter } from '../types';
 import { CATEGORIES, CATEGORY_MAP } from '../data/categories';
@@ -57,7 +58,7 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   // Delete Confirm State
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const loadLogs = async (emailToFetch?: string) => {
+  const loadLogs = async (emailToFetch?: string, isManualSync = false) => {
     const target = (emailToFetch || user?.email || '').trim().toLowerCase();
     if (!target) {
       setLogs([]);
@@ -68,8 +69,14 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
     try {
       const data = await fetchUserLogs(target);
       setLogs(data);
+      if (isManualSync) {
+        showToast(`已從雲端重新同步完成！共找到 ${data.length} 筆日誌紀錄`, 'success');
+      }
     } catch (e) {
       console.error("Error loading personal logs:", e);
+      if (isManualSync) {
+        showToast('同步過程發生錯誤，請稍候重試', 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -205,19 +212,25 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
         </div>
 
         {user && (
-          <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 shadow-xs">
-            <User className="w-4 h-4 text-violet-500" />
-            <div className="flex flex-col">
-              <span className="font-semibold text-slate-900 dark:text-white">{user.displayName || user.email.split('@')[0]}</span>
-              <span className="text-[11px] text-slate-400">{user.email}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 shadow-xs">
+              <User className="w-4 h-4 text-violet-500 flex-shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-slate-900 dark:text-white leading-tight">{user.displayName || user.email.split('@')[0]}</span>
+                <span className="text-[11px] text-slate-400 leading-tight">{user.email}</span>
+              </div>
             </div>
+
+            {/* Prominent Re-sync Button */}
             <button
-              onClick={() => loadLogs(user.email)}
+              onClick={() => loadLogs(user.email, true)}
               disabled={loading}
-              title="重新同步雲端資料"
-              className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              id="personal-logs-resync-btn"
+              className="px-3.5 py-2 rounded-2xl bg-violet-600 hover:bg-violet-700 active:scale-95 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              title="點擊從雲端 Firestore 重新獲取最新日誌資料"
             >
-              <Sparkles className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-violet-500' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>{loading ? '同步中...' : '重新同步'}</span>
             </button>
           </div>
         )}

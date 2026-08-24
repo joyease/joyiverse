@@ -11,8 +11,8 @@ import {
   Navigation,
   Calendar,
   Lock,
-  Search,
-  User
+  User,
+  RefreshCw
 } from 'lucide-react';
 import { LogEntry, LogType } from '../types';
 import { CATEGORY_MAP } from '../data/categories';
@@ -22,10 +22,15 @@ import { useAuth } from '../context/AuthContext';
 type FilterType = 'all' | '旅行' | '運動' | '美食';
 type MapTimeFilter = 'all' | 'month' | 'week' | 'day';
 
-export const PersonalMapView: React.FC = () => {
+interface PersonalMapViewProps {
+  showToast?: (message: string, type?: 'success' | 'info' | 'error') => void;
+}
+
+export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) => {
   const { user, openAuthModal } = useAuth();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   
   // Default to recent 7 days (近7天)
   const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('week');
@@ -36,7 +41,7 @@ export const PersonalMapView: React.FC = () => {
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
-  const loadData = async (emailToFetch?: string) => {
+  const loadData = async (emailToFetch?: string, isManualSync = false) => {
     const target = (emailToFetch || user?.email || '').trim().toLowerCase();
     if (!target) {
       setLogs([]);
@@ -44,11 +49,25 @@ export const PersonalMapView: React.FC = () => {
       return;
     }
     setLoading(true);
+    setSyncFeedback(null);
     try {
       const data = await fetchUserLogs(target);
       setLogs(data);
+      const geoCount = data.filter(d => d.lat != null && d.lng != null).length;
+      if (isManualSync) {
+        const msg = `已從雲端同步！共載入 ${data.length} 筆資料 (含 ${geoCount} 個地圖打卡點)`;
+        setSyncFeedback(msg);
+        showToast?.(msg, 'success');
+        setTimeout(() => setSyncFeedback(null), 4000);
+      }
     } catch (e) {
       console.error("Error loading user map logs:", e);
+      if (isManualSync) {
+        const errMsg = '同步失敗，請檢查網路連線後重試';
+        setSyncFeedback(errMsg);
+        showToast?.(errMsg, 'error');
+        setTimeout(() => setSyncFeedback(null), 4000);
+      }
     } finally {
       setLoading(false);
     }
@@ -252,23 +271,36 @@ export const PersonalMapView: React.FC = () => {
         </div>
 
         {user && (
-          <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 shadow-xs">
-            <User className="w-4 h-4 text-emerald-500" />
-            <div className="flex flex-col">
-              <span className="font-semibold text-slate-900 dark:text-white">{user.displayName || user.email.split('@')[0]}</span>
-              <span className="text-[11px] text-slate-400">{user.email}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 p-2 px-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 shadow-xs">
+              <User className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+              <div className="flex flex-col">
+                <span className="font-semibold text-slate-900 dark:text-white leading-tight">{user.displayName || user.email.split('@')[0]}</span>
+                <span className="text-[11px] text-slate-400 leading-tight">{user.email}</span>
+              </div>
             </div>
+
+            {/* Prominent Re-sync Button */}
             <button
-              onClick={() => loadData(user.email)}
+              onClick={() => loadData(user.email, true)}
               disabled={loading}
-              title="重新同步雲端資料"
-              className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
+              id="personal-map-resync-btn"
+              className="px-3.5 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              title="點擊從雲端 Firestore 重新獲取最新足跡打卡資料"
             >
-              <Navigation className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-500' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>{loading ? '同步中...' : '重新同步'}</span>
             </button>
           </div>
         )}
       </div>
+
+      {syncFeedback && (
+        <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-medium flex items-center gap-2 animate-in fade-in">
+          <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+          <span>{syncFeedback}</span>
+        </div>
+      )}
 
       {!user ? (
         <div className="p-6 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 flex flex-col items-center text-center gap-4 py-12 shadow-xs">

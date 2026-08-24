@@ -1,4 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import appletConfigJson from '../../firebase-applet-config.json';
+const appletConfig: Record<string, string | undefined> = (appletConfigJson as Record<string, string | undefined>) || {};
 import { 
   getAuth, 
   GoogleAuthProvider, 
@@ -72,24 +74,26 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   return errInfo;
 }
 
-// Firebase Configuration
-const rawApiKey = import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDLRUdJHUZyd1rO0qnN8z0jEQlg86q9QRQ";
-const rawProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || "joyiverse-c0601";
+// Firebase Configuration:
+// 1. If VITE_FIREBASE_* env variables are provided (e.g. for GitHub Pages or custom project build), they take highest priority.
+// 2. Otherwise fall back to AI Studio's auto-provisioned configuration.
+const rawApiKey = import.meta.env.VITE_FIREBASE_API_KEY || appletConfig?.apiKey || "AIzaSyAdHfR_16idXXPs-kEZ1VS54Vb7faVo77c";
+const rawProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig?.projectId || "symmetric-bonus-nc9s2";
+const firestoreDatabaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID || (import.meta.env.VITE_FIREBASE_PROJECT_ID ? undefined : appletConfig?.firestoreDatabaseId);
 
 export const isRealFirebaseConfigured = Boolean(
   rawApiKey &&
   !rawApiKey.includes('DummyKey') &&
-  rawProjectId &&
-  rawProjectId !== 'joyful-life-log'
+  rawProjectId
 );
 
 const firebaseConfig = {
   apiKey: rawApiKey,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "joyiverse-c0601.firebaseapp.com",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || (rawProjectId ? `${rawProjectId}.firebaseapp.com` : appletConfig?.authDomain),
   projectId: rawProjectId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "joyiverse-c0601.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "637809504937",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:637809504937:web:8484051747b92c08f66fb8"
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (rawProjectId ? `${rawProjectId}.firebasestorage.app` : appletConfig?.storageBucket),
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig?.messagingSenderId || "949094700104",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig?.appId || "1:949094700104:web:143771016ac2f0e035b47d"
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -100,9 +104,20 @@ googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 let dbInstance: Firestore | null = null;
 try {
-  dbInstance = getFirestore(app);
+  if (firestoreDatabaseId && firestoreDatabaseId !== '(default)') {
+    dbInstance = getFirestore(app, firestoreDatabaseId);
+    console.log(`✅ [Firebase Firestore] Connected to named database: ${firestoreDatabaseId}`);
+  } else {
+    dbInstance = getFirestore(app);
+    console.log(`✅ [Firebase Firestore] Connected to default database for project: ${rawProjectId}`);
+  }
 } catch (e) {
-  console.warn("Firestore initialization notice:", e);
+  console.warn("Firestore initialization error, falling back to default getFirestore:", e);
+  try {
+    dbInstance = getFirestore(app);
+  } catch (e2) {
+    console.error("Firestore final initialization error:", e2);
+  }
 }
 export const db = dbInstance;
 

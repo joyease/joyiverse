@@ -73,7 +73,7 @@ const MainContent: React.FC = () => {
             showToast={showToast}
           />
         ) : currentTab === 'map' ? (
-          <PersonalMapView />
+          <PersonalMapView showToast={showToast} />
         ) : currentTab === 'input' ? (
           <InputLogView
             onSuccessNavigate={handleSelectTab}
