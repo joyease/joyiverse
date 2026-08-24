@@ -1,49 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 預設拒絕所有未明訂規則的存取
     match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // 1. 白名單授權信箱集合 (allowed_emails)
-    // 允許客戶端讀取以進行登入驗證；寫入管理由 Firebase Admin / 後台 Console 控制
-    match /allowed_emails/{emailDoc} {
-      allow read: if true;
-      allow write: if false; // 僅限 Firebase Console 後台管理員直接新增/修改
-    }
-
-    // 2. 欄位容量限制、型態與格式檢查 (安全防護且支援選填欄位)
-    function isValidLog(data) {
-      return data.userId is string 
-        && data.userId.size() > 0 
-        && data.userId.size() <= 150
-        && data.type in ['旅行', '運動', '美食', '閱讀', '創作', '視聽', '寫字', '影片']
-        && data.categoryGroup in ['outdoor', 'life']
-        && data.note is string 
-        && data.note.size() > 0 
-        && data.note.size() <= 3000
-        && data.isPublic is bool
-        && data.createdAt is string && data.createdAt.size() <= 50
-        && data.updatedAt is string && data.updatedAt.size() <= 50;
-    }
-
-    // 3. 日誌與足跡資料庫 (Logs Collection)
-    match /logs/{logId} {
-      // 讀取：公開紀錄與生活足跡開放讀取與個人統計
-      allow get, list: if true;
-
-      // 新增：寫入必須通過欄位資料校驗
-      allow create: if isValidLog(request.resource.data);
-
-      // 修改：不可竄改建立時間，且通過檢查
-      allow update: if request.resource.data.userId == resource.data.userId
-                    && request.resource.data.createdAt == resource.data.createdAt
-                    && isValidLog(request.resource.data);
-
-      // 刪除：允許擁有者刪除
-      allow delete: if resource.data.userId is string;
+      allow read, write: if true;
     }
   }
 }
+
 
