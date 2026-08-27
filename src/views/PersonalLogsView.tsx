@@ -45,7 +45,7 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
   
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [timeFilter, setTimeFilter] = useState<TimeRangeFilter>('all');
+  const [timeFilter, setTimeFilter] = useState<TimeRangeFilter>('week');
   const [chartType, setChartType] = useState<'bar' | 'pie'>('bar');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
@@ -254,11 +254,11 @@ export const PersonalLogsView: React.FC<PersonalLogsViewProps> = ({ showToast })
       <div className="p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 flex items-center gap-1 max-w-lg">
         {(
           [
-            { id: 'all', label: '全部 (All)' },
-            { id: 'day', label: '今日 (Day)' },
             { id: 'week', label: '近 7 天' },
+            { id: 'day', label: '今日 (Day)' },
             { id: 'month', label: '近 30 天' },
             { id: 'year', label: '近 1 年' },
+            { id: 'all', label: '全部 (All)' },
           ] as { id: TimeRangeFilter; label: string }[]
         ).map(tab => {
           const isActive = timeFilter === tab.id;

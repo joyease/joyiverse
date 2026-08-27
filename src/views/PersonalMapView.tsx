@@ -32,8 +32,8 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
   const [loading, setLoading] = useState<boolean>(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   
-  // Default to all or recent
-  const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('all');
+  // Default to past 7 days to reduce initial browsing load
+  const [timeFilter, setTimeFilter] = useState<MapTimeFilter>('week');
   const [filterType, setFilterType] = useState<FilterType>('all');
 
   // Map DOM and instance refs
@@ -236,10 +236,10 @@ export const PersonalMapView: React.FC<PersonalMapViewProps> = ({ showToast }) =
   const recentPoint = filteredGeoLogs[0];
 
   const timeFilterOptions: { key: MapTimeFilter; label: string }[] = [
-    { key: 'all', label: '全部' },
-    { key: 'month', label: '近30天' },
     { key: 'week', label: '近7天' },
     { key: 'day', label: '今天' },
+    { key: 'month', label: '近30天' },
+    { key: 'all', label: '全部' },
   ];
 
   return (
